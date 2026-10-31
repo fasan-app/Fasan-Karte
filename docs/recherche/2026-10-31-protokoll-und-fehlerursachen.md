@@ -36,3 +36,14 @@ Anlass: Handy-Test REWE 3 (3 von 5 Posten, Hand sichtbar, nicht begradigt, „AE
 Einheiten 30/30, synthetische Bons 33/33 (195/195 Posten), echte Bons und Handy-Varianten richtig; offen: REWE 1
 auf 75 % verkleinert (Beträge eine halbe Zeile tiefer gedruckt, 4 von 5 Posten, ungeprüft gemeldet). SROIE 0–60: Summe
 richtig 55/60 (3.16: 43), falsch „geprüft“ 0 (3.16: 9; Bon 033 hat keinen Wahrheitswert).
+
+## Nachtrag: erstes geteiltes Handy-Protokoll (3.17, 31.10. abends)
+
+Handy: Android 17, Firefox 158, 360×780 @3, 8 Kerne. Foto 2250×3000 (anderes Foto desselben Bons als im Test).
+
+| Befund | Ursache | Abhilfe in 3.18 |
+| --- | --- | --- |
+| 7,11 statt 7,76 €, KRAEUTERQUARK 0,65 | Beträge 1,79/1,89/1,30 eng übereinander; die Erkennung verschmolz/zerriss sie in **allen** 8 Durchläufen („1,“ · „E79“ · „89“), 1,30 fehlte, Mengenzeile „2 Stk x 0,65“ wurde Posten | `spalteNeu`: Betragsspalte ausschneiden, Neigung aus dem Zeilenprofil, an Drucklücken teilen (Läufe aus k Zeilen an den k−1 schwächsten Stellen), jede Zeile einzeln lesen; nur als Rettung, wenn die normale Lesung nicht stimmt |
+| Am Rechner mit diesem Foto: „geprüft“ mit verrutschten Namen | gleiche Beträge, falsch verteilt → Summe geht auf | Widersprüche: Mengenzeile N × P ≠ Betrag eines Nachbarpostens; namenloser Posten + Namenszeile ohne Betrag; großer Spaltenversatz kostet auch bei stimmender Summe |
+| Angezeigter Bon schief, Betragsspalte gestaucht | angezeigt wurde ein geglättetes Bild aus einer verrutschten Zuordnung | Vorrang für den von UVDoc entfalteten, zugeschnittenen Bon; Glätten danach aus der endgültigen Zuordnung |
+| 160 s Dauer | 8 Durchläufe à ~15 s | stimmt der erste Durchlauf, entfallen die Verbesserungs-Durchläufe; weiter offen |

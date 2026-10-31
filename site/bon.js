@@ -324,6 +324,79 @@ window.Bon = (() => {
     if (!mehrere) return bau([...je.entries()].filter(([k]) => Math.abs(k) <= 1).map(([, a]) => a).sort((a, b) => a.kosten - b.kosten)[0]);
     return sortiert.slice(0, 4).map(bau);
   }
+  // ---------- Betragsspalte neu zerlegen ----------
+  // Engzeilig gedruckte, gewellte Bons: Die Texterkennung verschmilzt oder zerreißt die übereinanderstehenden Beträge
+  // („1,“ | „E79“ | „89“, Test 31.10., Handy-Protokoll REWE 3: 1,30 fehlte in jedem Durchlauf). Hier wird die Spalte als
+  // Streifen ausgeschnitten, ihre Neigung aus dem Zeilenprofil bestimmt (Projektionsprofil, klassische Zeilentrennung),
+  // an den Lücken zwischen den Druckzeilen geteilt und jede Zeile einzeln gelesen. Rückgabe: neue Wortliste oder null.
+  async function spalteNeu(c, woerter) {
+    if (!window.FasanOCR || !window.FasanOCR.mehrfach || !c || !c.getContext) return null;
+    const w = ohneKrumen(woerter), istB = (t) => /\d[.,]\s?\d{2}(?!\d)/.test(t) && !/[a-z]{4,}/i.test(t);
+    const bet = w.filter((x) => istB(x.t)); if (bet.length < 3) return null;
+    const med = (a) => [...a].sort((p, q) => p - q)[a.length >> 1], h = med(w.map((x) => x.b.y1 - x.b.y0));
+    const kante = [...bet.map((x) => x.b.x1)].sort((p, q) => p - q)[Math.floor(bet.length * 0.7)];
+    const spalte = w.filter((x) => x.b.x1 > kante - 2.5 * h && x.b.x1 < kante + 2 * h && /\d/.test(x.t) && !/[a-z]{3,}/i.test(x.t));
+    if (spalte.length < 3) return null;
+    // linker Rand: Kante minus die übliche Breite eines Betrags (nicht das am weitesten links reichende Wort – das ist oft ein
+    // mit dem Namen verschmolzener Kasten)
+    const breite = med(bet.map((x) => x.b.x1 - x.b.x0));
+    const X0 = Math.max(0, Math.round(Math.max(Math.min(...spalte.map((x) => x.b.x0)), kante - 1.6 * breite) - 0.4 * h)), X1 = Math.min(c.width, Math.round(kante + 1.2 * h));
+    const Y0 = Math.max(0, Math.round(Math.min(...spalte.map((x) => x.b.y0)) - h)), Y1 = Math.min(c.height, Math.round(Math.max(...spalte.map((x) => x.b.y1)) + h));
+    const SW = X1 - X0, SH = Y1 - Y0; if (SW < 2 * h || SH < 3 * h) return null;
+    // Graustufen und Schwelle (Otsu) im Streifen
+    const roh = c.getContext('2d', { willReadFrequently: true }).getImageData(X0, Y0, SW, SH).data, grau = new Uint8Array(SW * SH), hist = new Float64Array(256);
+    for (let i = 0; i < grau.length; i++) { const v = (roh[i * 4] * 3 + roh[i * 4 + 1] * 6 + roh[i * 4 + 2]) / 10 | 0; grau[i] = v; hist[v]++; }
+    let schwelle = 128; { let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i]; let wB = 0, sB = 0, best = -1; for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = grau.length - wB; if (!wF) break; sB += t * hist[t]; const d = sB / wB - (sum - sB) / wF, v = wB * wF * d * d; if (v > best) { best = v; schwelle = t; } } }
+    const dunkel = []; for (let y = 0; y < SH; y += 1) for (let x = 0; x < SW; x += 2) if (grau[y * SW + x] < schwelle) dunkel.push(x, y);
+    if (dunkel.length < 40) return null;
+    // Neigung: der Winkel, bei dem das Zeilenprofil am schärfsten ist
+    let winkel = 0, bestS = -1;
+    for (let a = -6; a <= 6.001; a += 0.25) { const t = Math.tan((a * Math.PI) / 180), pr = new Float64Array(SH + SW); for (let i = 0; i < dunkel.length; i += 2) { const yy = Math.round(dunkel[i + 1] - (dunkel[i] - SW / 2) * t + SW / 2); if (yy >= 0 && yy < pr.length) pr[yy]++; } let s2 = 0; for (const v of pr) s2 += v * v; if (s2 > bestS) { bestS = s2; winkel = a; } }
+    // Streifen um die Neigung zurückdrehen, Profil neu messen, an den Lücken teilen
+    const R = document.createElement('canvas'); R.width = SW; R.height = SH;
+    const rg = R.getContext('2d', { willReadFrequently: true }); rg.fillStyle = '#fff'; rg.fillRect(0, 0, SW, SH);
+    // Streifen ohne fremde Wörter (Namen, die in den Streifen ragen): diese Flächen werden weiß
+    const S = document.createElement('canvas'); S.width = SW; S.height = SH; const sg = S.getContext('2d'); sg.drawImage(c, X0, Y0, SW, SH, 0, 0, SW, SH); sg.fillStyle = '#fff';
+    for (const x of w) if (!spalte.includes(x) && /[a-z]{2,}/i.test(x.t) && x.b.x1 > X0 && x.b.x0 < X1 && x.b.y1 > Y0 && x.b.y0 < Y1) sg.fillRect(x.b.x0 - X0, x.b.y0 - Y0, x.b.x1 - x.b.x0, x.b.y1 - x.b.y0);
+    rg.translate(SW / 2, SH / 2); rg.rotate((-winkel * Math.PI) / 180); rg.drawImage(S, -SW / 2, -SH / 2); rg.setTransform(1, 0, 0, 1, 0, 0);
+    const rd = rg.getImageData(0, 0, SW, SH).data, prof = new Float64Array(SH), lx = new Int32Array(SH).fill(SW), rx = new Int32Array(SH).fill(-1);
+    for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) { const o = (y * SW + x) * 4; if ((rd[o] * 3 + rd[o + 1] * 6 + rd[o + 2]) / 10 < schwelle) { prof[y]++; if (x < lx[y]) lx[y] = x; if (x > rx[y]) rx[y] = x; } }
+    const gl = Float64Array.from(prof, (v, i) => (prof[Math.max(0, i - 1)] + v + prof[Math.min(SH - 1, i + 1)]) / 3);
+    const grenze = Math.max(1.5, 0.06 * Math.max(...gl)), laeufe = [];
+    for (let y = 0, a = -1; y <= SH; y++) { const an = y < SH && gl[y] > grenze; if (an && a < 0) a = y; if (!an && a >= 0) { laeufe.push([a, y]); a = -1; } }
+    // zu hohe Läufe (zwei Zeilen ohne sichtbare Lücke) am schwächsten Punkt teilen, zu niedrige (Striche, Punkte) verwerfen
+    // Druckzeilenhöhe aus den einzeln stehenden Läufen; ein Lauf aus k Zeilen wird an den k−1 schwächsten Stellen nahe den
+    // erwarteten Grenzen geteilt
+    const einzeln = laeufe.map(([a, b]) => b - a).filter((d) => d > 0.55 * h && d < 1.45 * h), hz = einzeln.length >= 2 ? med(einzeln) : h;
+    const zeilen = [];
+    for (const [a, b] of laeufe) {
+      const k = Math.max(1, Math.round((b - a) / hz));
+      if (k === 1) { if (b - a >= 0.45 * h) zeilen.push([a, b]); continue; }
+      let start = a;
+      for (let j = 1; j < k; j++) { const soll = a + ((b - a) * j) / k, r = 0.3 * hz; let m = Math.round(soll), mv = Infinity; for (let y = Math.round(soll - r); y <= soll + r; y++) if (y > start && y < b && gl[y] < mv) { mv = gl[y]; m = y; } zeilen.push([start, m]); start = m; }
+      zeilen.push([start, b]);
+    }
+    if (zeilen.length < 3 || zeilen.length > 80) return null;
+    const neu = [], cos = Math.cos((winkel * Math.PI) / 180), sin = Math.sin((winkel * Math.PI) / 180);
+    for (const [a, b] of zeilen) {
+      let l = SW, r = -1; for (let y = a; y < b; y++) { if (lx[y] < l) l = lx[y]; if (rx[y] > r) r = rx[y]; }
+      if (r - l < 0.6 * h) continue;
+      const k = { x0: Math.max(0, l - 0.3 * h), x1: Math.min(SW, r + 0.3 * h), y0: Math.max(0, a - 0.12 * h), y1: Math.min(SH, b + 0.12 * h) };
+      let lesungen = [];
+      try { lesungen = await window.FasanOCR.mehrfach(R, k, { varianten: [[0.12, 0], [0.3, 0], [0.2, 0, true]] }); } catch (e) { continue; }
+      lesungen = lesungen.map((x) => ({ ...x, t: x.t.replace(/^[^\d-]+/, '').trim() })).filter((x) => x.t);
+      const mitB = lesungen.filter((x) => istB(x.t)), wahl = (mitB.length ? mitB : lesungen).sort((p, q) => q.c - p.c)[0];
+      if (!wahl || !/\d/.test(wahl.t)) continue;
+      // Mitte zurück ins Bild (Drehung um die Streifenmitte)
+      const mx = (k.x0 + k.x1) / 2 - SW / 2, my = (a + b) / 2 - SH / 2, ox = mx * cos - my * sin + SW / 2 + X0, oy = mx * sin + my * cos + SH / 2 + Y0, hw = (k.x1 - k.x0) / 2, hh = (b - a) / 2;
+      neu.push({ t: wahl.t, c: wahl.c, b: { x0: ox - hw, x1: ox + hw, y0: oy - hh, y1: oy + hh }, spalte: true, mehr: lesungen.map((x) => x.t) });
+    }
+    if (neu.filter((x) => istB(x.t)).length < 3) return null;
+    // alte Wörter der Spalte (Ziffern, Steuerbuchstaben) ersetzen; Wörter, die links aus dem Streifen ragen, bleiben
+    const imStreifen = (x) => x.b.x0 >= X0 - 0.3 * h && x.b.x1 <= X1 + 0.5 * h && (x.b.y0 + x.b.y1) / 2 >= Y0 && (x.b.y0 + x.b.y1) / 2 <= Y1 && (/\d/.test(x.t) || x.t.trim().length <= 2) && !/[a-z]{3,}/i.test(x.t);
+    pl('spalte', { winkel, zeilen: zeilen.length, gelesen: neu.length, betraege: neu.filter((x) => istB(x.t)).map((x) => x.t) });
+    return [...woerter.filter((x) => !imStreifen(x)), ...neu];
+  }
   function reihenAbgleich(L, R, off, pitch) {
     const n = L.length, m = R.length, cy = (z) => (z.b.y0 + z.b.y1) / 2, LUECKE_L = 0.45, LUECKE_R = 0.6;
     const D = Array.from({ length: n + 1 }, () => new Float64Array(m + 1)), W = Array.from({ length: n + 1 }, () => new Int8Array(m + 1));
@@ -368,7 +441,7 @@ window.Bon = (() => {
     // Stückzahl-Summen („Total Qty 2“, „Item(s): 5“, „Total Points“): nie die Gesamtsumme (SROIE 003, 052, 054)
     anzahl: /\b(total\s*(qty|quantity|items?|pcs|points|pts)|items?\s*\(?s?\)?\.?\s*:|qty\s*\(?s?\)?\.?\s*:|item count|iten count|no\.? of items|anzahl artikel|artikelanzahl|anz\.? artikel)/,
     // „Total incl. GST“ ist die Gesamtsumme, keine Steuerzeile; „Net Total“ (Malaysia, Singapur) ebenso
-    inklSteuer: /\b(incl|inkl|inclusive?|inclusiv\s+e|including|inc)\b\.?\s*(of\s*)?(gst|vat|tax|mwst|iva|tva|sst|ust)\b|\b(net|nett)\s+total\b/,
+    inklSteuer: /\b(incl|inkl|inclusive?|inclusiv\s+e|including|inc)\b\.?\s*(of\s*)?(gst|vat|tax|mwst|iva|tva|sst|ust)\b|\binclu\S{0,5}(\s+\S)?\s+(of\s*)?(gst|vat|tax|sst)\b|\b(net|nett)\s+total\b/, // „inclusiv• of GST“: Lesefehler im Wort (SROIE 003)
     // Kopf einer Steuer-Übersicht: Zeilen danach sind Steuertabelle, keine Summe (SROIE 031: „GST Summary … Total 70.75“)
     steuerTabelle: /\b(gst|tax|vat|mwst|iva|tva|sst|ust)\s*(summary|susmary|summ?ary|analysis|breakdown|code)\b|steuer\s*(ubersicht|aufstellung)|resumo (do )?iva|riepilogo iva|desglose iva/,
     zahlung: /\b(bar|gegeben|kartenzahlung|karte|ec|ec-cash|girocard|kreditkarte|visa|mastercard|maestro|amex|vpay|paypal|apple pay|google pay|cash|card|tendered|entregue|valor entregue|pago|pagamento|efectivo|tarjeta|especes|carte|cb|contanti|carta|bancomat|pin|contant|kaart|pinnen|multibanco|mb way|dinheiro|numerario|cartao|kontaktlos|contactless|bezahlt|paid)\b/,
@@ -1013,7 +1086,29 @@ window.Bon = (() => {
   }
   const drehen180 = (c) => { const o = document.createElement('canvas'); o.width = c.width; o.height = c.height; const g = o.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, o.width, o.height); g.translate(o.width, o.height); g.rotate(Math.PI); g.drawImage(c, 0, 0); return o; };
   // Güte eines Ergebnisses: Summe stimmt mit QR/Tabelle > sichere Posten > viele Posten > sichere Wörter
-  const widersprueche = (r) => (r.zeilen || []).filter((z) => /pfand|deposit|statiegeld|vasilhame/i.test(z.text) && !/leergut|r[uü]ckgabe/i.test(z.text)).filter((z) => { const bt = betraege(z.text, r.dez || ','); return bt.length >= 2 && Math.abs(bt[0].v) !== Math.abs(bt[bt.length - 1].v); }).length;
+  // Widersprüche, die eine verrutschte Zuordnung verraten, obwohl die Summe aufgeht (gleiche Beträge, falsch verteilt):
+  // 1. Pfandzeile „PFAND 0,25 EUR 0,39“: der genannte Pfandbetrag muss der Betrag der Zeile sein (Test: REWE gedreht).
+  // 2. Mengenzeile „2 Stk x 0,65“: Menge × Einzelpreis muss der Betrag eines benachbarten Postens sein (Test 31.10., Handy-
+  //    Protokoll REWE 3: Beträge eine Zeile verschoben, KRAEUTERQUARK ohne Betrag, Summe trotzdem 7,76).
+  // 3. Posten ohne lesbaren Namen und zugleich eine Namenszeile ohne Betrag im Postenblock.
+  const widersprueche = (r) => {
+    const zl = r.zeilen || [];
+    let n = zl.filter((z) => /pfand|deposit|statiegeld|vasilhame/i.test(z.text) && !/leergut|r[uü]ckgabe/i.test(z.text)).filter((z) => { const bt = betraege(z.text, r.dez || ','); return bt.length >= 2 && Math.abs(bt[0].v) !== Math.abs(bt[bt.length - 1].v); }).length;
+    zl.forEach((z, i) => {
+      const m = /^\s*(\d{1,3})\s*(?:stk|st|pcs?|pz|un|x|×)\.?\s*(?:x|×|à|a|@)?\s*(\d+[.,]\s?\d{2})(?!\d)/i.exec(z.text);
+      if (!m) return; const soll = Math.round(+m[1] * cent(m[2].replace(/\s/g, '')));
+      const nah = (r.posten || []).filter((p) => p.zeile != null && p.zeile >= i - 2 && p.zeile <= i + 1 && p.zeile !== i);
+      if (nah.length && !nah.some((p) => Math.abs(Math.abs(p.b) - soll) <= 1)) n++;
+    });
+    const namenlos = (r.posten || []).some((p) => p.nameUnsicher && !p.fehlt), waise = zl.some((z) => z.typ === 'unklar');
+    if (namenlos && waise) n++;
+    return n;
+  };
+  // Gleichstand im Lesen: welches Bild der Nutzer sehen soll. Vorrang hat der vom Netz entfaltete, zugeschnittene Bon
+  // („entfaltet“): flach und ohne Hand. Das Glätten aus den Zeilen wird danach aus der endgültigen (richtigen) Zuordnung
+  // berechnet; ein früher geglättetes Bild trägt eine eventuell verrutschte Zuordnung in sich (Test 31.10., REWE 3:
+  // Betragsspalte gestaucht).
+  const anzeigeBonus = (name, gerade) => /^entfaltet(?!-foto)/.test(name) ? 90 : /^geglaettet2/.test(name) ? 70 : /^geglaettet/.test(name) ? 60 : /^entfaltet/.test(name) ? 45 : gerade && name !== 'foto' ? 30 : 0;
   function guete(r, woerter) {
     const sicher = r.posten.filter((p) => p.sicher).length, gut = woerter.filter((x) => x.c > 70).length;
     // verrutschte Zuordnung (Betrag der Nachbarzeile) erzeugt Posten ohne Namen und Namenszeilen ohne Betrag – beides kostet
@@ -1180,18 +1275,23 @@ window.Bon = (() => {
       let z = zeilenAus(woerter, { gerade }), r = lies(z, qr), g = guete(r, woerter);
       const zk = zeilenSpalten(woerter, true) || [];
       let zname = '';
+      // Auch mit bestätigter Summe kostet ein großer Versatz: zwei stimmige Lesungen → die mit weniger Verschiebung gewinnt
+      // (Test 31.10., Belém: um eine Zeile verschobene Beträge ergaben dieselbe Summe, Kopfzeile wurde zum Posten).
       // ein Versatz um ganze Zeilen nur, wenn die Summe ihn bestätigt; sonst gilt die geometrisch nächste Paarung (fehlt ein
       // Betrag, passt keine Summe – dann darf nicht die verschobene Paarung gewinnen)
-      for (const z2 of zk) { const r2 = lies(z2, qr), ok2 = r2.pruefung && r2.pruefung.gesamtOk, g2 = guete(r2, woerter) - (ok2 ? 0 : 400 * Math.max(0, Math.abs(z2.spalten.versatz) - 0.6)); if (g2 > g) { z = z2; r = r2; g = g2; zname = `+spalten(${z2.spalten.versatz})`; } }
+      for (const z2 of zk) { const r2 = lies(z2, qr), ok2 = r2.pruefung && r2.pruefung.gesamtOk, g2 = guete(r2, woerter) - (ok2 ? 300 : 400) * Math.max(0, Math.abs(z2.spalten.versatz) - 0.6); if (g2 > g) { z = z2; r = r2; g = g2; zname = `+spalten(${z2.spalten.versatz})`; } }
+      // Betragsspalte neu zerlegt und gelesen (siehe spalteNeu) – nur wenn die Lesung noch nicht stimmt: die Neuzerlegung
+      // kann Namen benachbarter Zeilen vermischen (Test 31.10., Belém), sie ist die Rettung für verschmolzene Beträge
+      if (paddle && !(r.pruefung && r.pruefung.gesamtOk)) { try { const w2 = await spalteNeu(leinwand, woerter); if (w2) { for (const z2 of [zeilenAus(w2, { gerade }), ...(zeilenSpalten(w2, true) || [])]) { const r2 = lies(z2, qr), ok2 = r2.pruefung && r2.pruefung.gesamtOk, vs = z2.spalten ? z2.spalten.versatz : 0, g2 = guete(r2, w2) - (ok2 ? 300 : 400) * Math.max(0, Math.abs(vs) - 0.6) - 150; /* Rettung: bei Gleichstand gilt die normale Lesung */ if (g2 > g) { z = z2; r = r2; g = g2; zname = `+spalte${z2.spalten ? `(${vs})` : ''}`; } } } } catch (e) { pf('spalte', e); } }
       name += zname;
       // Gleichstand: der entzerrte (und noch mehr der geglättete) Bon wird angezeigt – sieht aus wie gescannt
-      g += /^geglaettet2/.test(name) ? 80 : /^geglaettet/.test(name) ? 60 : /^entfaltet/.test(name) ? 45 : gerade && name !== 'foto' ? 30 : 0;
+      g += anzeigeBonus(name, gerade);
       versuche.push(`${name}:${Math.round(g)}`);
       if (P) {
         const pr = r.pruefung || {};
         pl('lauf', { name, guete: Math.round(g), ms: Math.round(performance.now() - ts), breite: leinwand.width, hoehe: leinwand.height, woerter: woerter.length, sicher80: woerter.length ? +(woerter.filter((x) => x.c > 80).length / woerter.length).toFixed(2) : 0,
           posten: r.posten.length, ohneName: r.posten.filter((p) => !p.t).length, summe: r.summe, total: r.total, gesamtOk: !!pr.gesamtOk,
-          zeilen: z.map((x) => x.text) });
+          zeilen: z.map((x) => x.text), woerter: woerter.map((x) => [x.t, Math.round(x.c), Math.round(x.b.x0), Math.round(x.b.y0), Math.round(x.b.x1), Math.round(x.b.y1)]) });
         if (leinwand.width) P.bilder.push({ name, bild: daumen(leinwand) });
       }
       const e = { g, r, v, roh, name, ecken, z, gerade }; alle.push(e);
@@ -1313,7 +1413,7 @@ window.Bon = (() => {
       }
       const r2 = lies(z, qr);
       if (guete(r2, []) >= guete(r, [])) r = r2;
-      const g2 = guete(r, []) + (/^geglaettet2/.test(pass.name) ? 80 : /^geglaettet/.test(pass.name) ? 60 : /^entfaltet/.test(pass.name) ? 45 : pass.gerade && pass.name !== 'foto' ? 30 : 0);
+      const g2 = guete(r, []) + anzeigeBonus(pass.name, pass.gerade);
       if (ki === 0 || g2 > ende.gEnde) { ende = { ...pass, r, gEnde: g2 }; window.__bonZeilen = z; } // __bonZeilen: zur Fehlersuche (Testskripte)
     }
     if (paddle) { stufe('Fertig', 0.98, 1)({ progress: 1 }); if (window.FasanOCR.frei) window.FasanOCR.frei(); }
@@ -1345,6 +1445,6 @@ window.Bon = (() => {
     }
     return { ...r, protokoll, qr, quelle: name, motor: paddle ? 'paddle' : 'tesseract', versuche, breite: v.canvas.width, hoehe: v.canvas.height, bild: anzeige.toDataURL('image/jpeg', 0.85), bildOriginal: anzeige !== v.canvas ? v.canvas.toDataURL('image/jpeg', 0.82) : null, winkel: v.winkel, roh, ecken };
   }
-  const VERSION = '3.17';
+  const VERSION = '3.18';
   return { VERSION, abbruchProtokoll: () => { const x = P; if (x) { x.dauer = t0(); P = null; } return x; }, erkenne, verbessern, bonArt, bereit, qrKacheln, vorbereiten, worterLesen, lies, liesAllgemein, abgleich, zeilenAus, zeilenSpalten, cent, qrLesen, qrSuchen, paddleDa };
 })();

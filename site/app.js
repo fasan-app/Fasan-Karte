@@ -1,7 +1,7 @@
 'use strict';
 /* Fasan Karte – Logik. Keine Konten, keine Statistik; Markierungen bleiben auf dem Gerät (localStorage). */
 (() => {
-  const VERSION = '3.17';
+  const VERSION = '3.18';
   const STAND_NOTIZEN = '23.10.2026'; // Recherche der Notizen ohne eigene Quelle. Preise und Gratis-Angaben tragen seit 24.10.2026 eigene Quellen.
   const datumDe = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
   const TAGE = [
@@ -26,6 +26,11 @@
     suche: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
     zurueck: '<path d="M15 5l-7 7 7 7"/>',
+    rueck: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    vor: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+    ganz: '<path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/>',
+    kaesten: '<rect x="3" y="5" width="18" height="5" rx="1.5"/><rect x="3" y="14" width="18" height="5" rx="1.5"/>',
+    stift: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
     haken: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     sichern: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 20v-6h8v6"/>',
     aus: '<path d="M3 3l18 18M10.6 5.2A9.9 9.9 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6C3.8 8.4 2 12 2 12s4 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
@@ -109,7 +114,7 @@
   ];
   const PROFILE = [
     ['standard', 'Standard', 'Alle Funktionen.'],
-    ['einfach', 'Einfach', 'Größere Schrift und Knöpfe, weniger Auswahl.'],
+    ['einfach', 'Groß', 'Größere Schrift und Schaltflächen, weniger Auswahl.'],
     ['lesbar', 'Gut lesbar', 'Kontrast 7:1 und die größte Schrift.'],
   ];
   const UA = navigator.userAgent;
@@ -611,6 +616,8 @@
     if (E.profil === 'lesbar' && E.theme === 'system') t = 'kontrast';
     r.dataset.theme = t;
     r.dataset.profil = E.profil;
+    // „Weniger Bewegung“ in den Einstellungen, zusätzlich zur Systemeinstellung (prefers-reduced-motion)
+    if (E.bewegung === 'wenig') r.dataset.bewegung = 'wenig'; else delete r.dataset.bewegung;
     const mc = { hell: '#F6F5F1', dunkel: '#111211', kontrast: '#000000', glas: '#0E1218' }[t];
     $$('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', mc));
   }
@@ -1688,6 +1695,7 @@
       el('section', { class: 'abschnitt' }, protokollListe()),
       el('section', { class: 'abschnitt' }, el('h3', {}, 'Über dich'), profilTeil('alles', () => zeichne({ scroll: true }))),
       el('section', { class: 'abschnitt' }, el('h3', {}, 'Profil'), wahl(PROFILE, E.profil, (id) => { E.profil = id; speichereE(); wendeAn(); hoehe(S.hoehe); zeichne({ scroll: true }); })),
+      el('section', { class: 'abschnitt' }, el('h3', {}, 'Bewegung'), wahl([['system', 'Wie das Gerät', 'Animationen nach der Einstellung des Handys.'], ['wenig', 'Weniger Bewegung', 'Keine Animationen und Übergänge.']], E.bewegung === 'wenig' ? 'wenig' : 'system', (id) => { E.bewegung = id; speichereE(); wendeAn(); zeichne({ scroll: true }); })),
       el('section', { class: 'abschnitt' }, el('h3', {}, 'Aussehen'), wahl(THEMES, E.theme, (id) => { E.theme = id; speichereE(); wendeAn(); zeichne({ scroll: true }); })),
       el('section', { class: 'abschnitt' }, el('h3', {}, 'Navigation'),
         wahl([['an', 'Sprachansage an', 'sagt die Abbiegungen an'], ['aus', 'Sprachansage aus', null]], E.ansage ? 'an' : 'aus', (id) => { E.ansage = id === 'an'; speichereE(); zeichne({ scroll: true }); })),
@@ -2622,8 +2630,8 @@
   function rwRueck() { if (!RW || !RW.hist || RW.hist.length < 2) return; RW.redo.push(RW.hist.pop()); haptik(10); rwZustandSetzen(RW.hist[RW.hist.length - 1]); }
   function rwVor() { if (!RW || !RW.redo || !RW.redo.length) return; const z = RW.redo.pop(); RW.hist.push(z); haptik(10); rwZustandSetzen(z); }
   const rwVerlaufKnoepfe = () => el('span', { class: 'reihe rw-verlauf', style: 'gap:2px' },
-    el('button', { type: 'button', class: 'knopf flach rwb-ik', disabled: !(RW.hist && RW.hist.length > 1), 'aria-label': 'Rückgängig', title: 'Rückgängig', onclick: rwRueck }, '↶'),
-    el('button', { type: 'button', class: 'knopf flach rwb-ik', disabled: !(RW.redo && RW.redo.length), 'aria-label': 'Wiederholen', title: 'Wiederholen', onclick: rwVor }, '↷'));
+    el('button', { type: 'button', class: 'ik-knopf', disabled: !(RW.hist && RW.hist.length > 1), 'aria-label': 'Rückgängig', title: 'Rückgängig', onclick: rwRueck }, ic('rueck')),
+    el('button', { type: 'button', class: 'ik-knopf', disabled: !(RW.redo && RW.redo.length), 'aria-label': 'Wiederholen', title: 'Wiederholen', onclick: rwVor }, ic('vor')));
   function rwMerken() {
     if (!RW || (!RW.foto && !RW.posten.length && !RW.summe)) return;
     const vor = RW.redo ? RW.redo.length : 0, n = RW.hist ? RW.hist.length : 0;
@@ -2724,6 +2732,7 @@
     if (!m) { m = el('div', { id: 'version-marke', 'aria-hidden': 'true' }); document.body.append(m); }
     const bv = window.Bon && window.Bon.VERSION, alt = bv && bv !== VERSION;
     m.textContent = `v${VERSION}${alt ? ` ! bon ${bv}` : ''}`; m.classList.toggle('alt', !!alt);
+    document.documentElement.style.setProperty('--fk-version', `"v${VERSION}"`); // für Stellen, an denen die Marke verdeckt wäre
   }
   setTimeout(versionMarke, 0); setInterval(versionMarke, 5000);
   async function protokollMerken(r, prot, original, fehler) {
@@ -2790,12 +2799,13 @@
   }
   function rwKopf() {
     const folge = rwFolge(), i = folge.indexOf(RW.schritt);
+    // Navigationsleiste in einer Zeile: links zurück/abbrechen, Mitte Titel mit Schrittpunkten und Version, rechts Aktionen
     return el('div', { class: 'rw-kopf' },
-      el('button', { type: 'button', class: 'knopf flach', onclick: rwZurueck, 'aria-label': i > 0 ? 'Einen Schritt zurück' : 'Abbrechen' }, ic('x'), i > 0 ? 'Zurück' : 'Abbrechen'),
+      el('button', { type: 'button', class: 'ik-knopf', onclick: rwZurueck, 'aria-label': i > 0 ? 'Einen Schritt zurück' : 'Abbrechen', title: i > 0 ? 'Zurück' : 'Abbrechen' }, ic(i > 0 ? 'zurueck' : 'x')),
       el('div', { class: 'rw-mitte' }, el('h2', { id: 'rw-titel', tabindex: '-1' }, rwNamen[RW.schritt]),
-        el('div', { class: 'rw-punkte', role: 'img', 'aria-label': `Schritt ${i + 1} von ${folge.length}` }, folge.map((s, k) => el('i', { class: k <= i ? 'an' : '' })))),
-      rwVerlaufKnoepfe(),
-      el('button', { type: 'button', class: 'knopf haupt rw-sichern', onclick: rwZwischenspeichern, 'aria-label': 'Speichern und schließen – später unter Kosten, Angefangen weitermachen' }, ic('sichern'), 'Speichern'));
+        el('div', { class: 'rw-unter' }, el('div', { class: 'rw-punkte', role: 'img', 'aria-label': `Schritt ${i + 1} von ${folge.length}` }, folge.map((s, k) => el('i', { class: k <= i ? 'an' : '' }))), el('span', { class: 'rw-ver' }, `v${VERSION}`))),
+      el('div', { class: 'rw-aktionen' }, rwVerlaufKnoepfe(),
+        el('button', { type: 'button', class: 'rw-sichern', onclick: rwZwischenspeichern, 'aria-label': 'Speichern und schließen – später unter Kosten, Angefangen weitermachen' }, ic('sichern'), 'Speichern')));
   }
   // Jederzeit verlassen ohne Datenverlust: Entwurf (wird ohnehin nach jeder Änderung gemerkt) sichern, schließen, Weg zurück zeigen
   function rwZwischenspeichern() {
@@ -2930,7 +2940,7 @@
             q.pruef && (!q.aus || q.kaution) ? el('em', { class: 'rw-pruef' }, q.pruef) : null),
           el('span', { class: 'rw-pb' }, (q.b < 0 ? '−' : '') + euro(q.b), rwSicherPill(q)),
           el('span', { class: 'rw-wer' }, q.aus ? 'ausgeblendet · antippen zum Einblenden' : frei ? 'noch offen' : alle ? 'Alle' : q.w.map(initial))),
-        el('button', { type: 'button', class: 'haken', 'aria-label': `${titel} bearbeiten`, onclick: () => { if (q.zl != null && RW.bon) rwBon(q.zl); else { RW.edit = i; rwZeichnen(false); } } }, '✎'));
+        el('button', { type: 'button', class: 'ik-knopf rw-stift', 'aria-label': `${titel} bearbeiten`, title: 'Bearbeiten', onclick: () => { if (q.zl != null && RW.bon) rwBon(q.zl); else { RW.edit = i; rwZeichnen(false); } } }, ic('stift')));
     });
     // neuer Posten: Betrag zuerst, Enter fügt hinzu und bleibt im Feld
     const nb = el('input', { type: 'text', inputmode: 'decimal', class: 'geld', placeholder: '0,00', 'aria-label': 'Betrag des neuen Postens', autocomplete: 'off' });
@@ -3387,16 +3397,17 @@
     const leiste = el('div', { class: 'rwb-leiste', role: 'group', 'aria-label': 'Antippen im Bon ordnet zu für' },
       wer.map((id) => el('button', { type: 'button', class: 'rwb-pers', style: personStil(id), 'aria-pressed': String(modus === id), onclick: () => { RW.bonModus = id; RW.aktiv = id; RW.bonSel = null; haptik(); neu(); } }, el('b', {}, kuerzel(id)), el('small', {}, euro(an[id] || 0)))),
       el('button', { type: 'button', class: 'rwb-pers alle', 'aria-pressed': String(modus === 'alle'), onclick: () => { RW.bonModus = 'alle'; RW.aktiv = 'alle'; RW.bonSel = null; haptik(); neu(); } }, el('b', {}, 'Alle'), el('small', {}, 'geteilt')),
-      el('button', { type: 'button', class: 'rwb-pers bearb', 'aria-pressed': String(modus === 'bearbeiten'), onclick: () => { RW.bonModus = 'bearbeiten'; haptik(); neu(); } }, el('b', {}, '✎'), el('small', {}, 'Bearbeiten')));
+      el('button', { type: 'button', class: 'rwb-pers bearb', 'aria-pressed': String(modus === 'bearbeiten'), onclick: () => { RW.bonModus = 'bearbeiten'; haptik(); neu(); }, 'aria-label': 'Bearbeiten: Kasten antippen öffnet die Bearbeitung' }, el('b', {}, '✎'), el('small', {}, 'Ändern')));
     setze(box,
       el('div', { class: 'rwb-kopf' },
-        el('button', { type: 'button', class: 'knopf flach', onclick: () => rwBonZu(), 'aria-label': 'Zurück zur Liste der Posten' }, ic('zurueck'), 'Liste'),
-        el('div', { class: 'reihe' }, rwVerlaufKnoepfe(),
-          el('button', { type: 'button', class: 'knopf flach rwb-ik', 'aria-pressed': String(!!RW.bonGanz), 'aria-label': RW.bonGanz ? 'Nur Posten zeigen' : 'Ganzen Bon zeigen (Kopf und Fuß)', onclick: () => { RW.bonGanz = !RW.bonGanz; neu(); } }, '↕'),
-          el('button', { type: 'button', class: 'knopf flach rwb-ik', 'aria-pressed': String(RW.bonMarken), 'aria-label': RW.bonMarken ? 'Kästen ausblenden' : 'Kästen einblenden', onclick: () => { RW.bonMarken = !RW.bonMarken; neu(); } }, '▭')),
-        el('button', { type: 'button', class: 'knopf haupt rw-sichern', onclick: rwZwischenspeichern, 'aria-label': 'Speichern und schließen – später weitermachen' }, ic('sichern'), 'Speichern')),
+        el('button', { type: 'button', class: 'ik-knopf', onclick: () => rwBonZu(), 'aria-label': 'Zurück zur Liste der Posten', title: 'Liste' }, ic('zurueck')),
+        rwVerlaufKnoepfe(),
+        el('span', { class: 'rwb-luecke' }),
+        el('button', { type: 'button', class: 'ik-knopf', 'aria-pressed': String(!!RW.bonGanz), 'aria-label': RW.bonGanz ? 'Nur Posten zeigen' : 'Ganzen Bon zeigen (Kopf und Fuß)', title: 'Ganzer Bon', onclick: () => { RW.bonGanz = !RW.bonGanz; neu(); } }, ic('ganz')),
+        el('button', { type: 'button', class: 'ik-knopf', 'aria-pressed': String(RW.bonMarken), 'aria-label': RW.bonMarken ? 'Kästen ausblenden' : 'Kästen einblenden', title: 'Kästen', onclick: () => { RW.bonMarken = !RW.bonMarken; neu(); } }, ic('kaesten')),
+        el('button', { type: 'button', class: 'rw-sichern', onclick: rwZwischenspeichern, 'aria-label': 'Speichern und schließen – später weitermachen' }, ic('sichern'), 'Speichern')),
       leiste,
-      RW.fotoOrig ? el('div', { class: 'rwb-ansicht', role: 'radiogroup', 'aria-label': 'Bild' }, [['scan', 'Bereinigt'], ['orig', 'Original'], ['beide', 'Nebeneinander']].map(([k, t]) => el('button', { type: 'button', class: 'chip', role: 'radio', 'aria-checked': String(ansicht === k), 'aria-pressed': String(ansicht === k), onclick: () => { RW.bonAnsicht = k; haptik(); neu(); } }, t))) : null,
+      RW.fotoOrig ? el('div', { class: 'rwb-ansicht segment', role: 'radiogroup', 'aria-label': 'Bild' }, [['scan', 'Bereinigt'], ['orig', 'Original'], ['beide', 'Nebeneinander']].map(([k, t]) => el('button', { type: 'button', class: 'segment-teil', role: 'radio', 'aria-checked': String(ansicht === k), 'aria-pressed': String(ansicht === k), onclick: () => { RW.bonAnsicht = k; haptik(); neu(); } }, t))) : null,
       el('div', { class: 'rwb-bereich' }, el('div', { class: 'rwb-roll' },
         !RW.bonGanz && yA > 0 ? el('button', { type: 'button', class: 'rwb-mehr', onclick: () => { RW.bonGanz = true; neu(); } }, '↑ Kopf des Bons zeigen') : null,
         el('div', { class: 'rwb-fenster' + (ansicht === 'beide' ? ' beide' : ''), style: `width:${RW.bonZoom * 100}%;aspect-ratio:${breit * (ansicht === 'beide' ? 2 : 1)} / ${hoch}` },
