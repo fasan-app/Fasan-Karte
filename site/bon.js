@@ -191,65 +191,6 @@ window.Bon = (() => {
     const breite = Math.hypot(ecken[1][0] - ecken[0][0], ecken[1][1] - ecken[0][1]);
     return breite > 10 * h ? ecken : null;
   }
-  // ---------- Glätten wie ein Dokumentscanner: gewelltes, geknicktes Papier aus den Textzeilen entzerren ----------
-  // Jede gelesene Zeile müsste waagrecht sein. Aus den Wortkästen (Mitte, Neigung langer Kästen) ergibt sich je Stelle, wie weit
-  // die Schrift nach oben/unten verschoben ist; linksbündige Zeilenanfänge und rechtsbündige Beträge müssten senkrecht
-  // untereinander stehen. Daraus ein glattes Verschiebungsfeld (Gauß-gewichtet auf einem Gitter) und das Bild neu abtasten.
-  // Prinzip wie „page dewarping“ aus Textzeilen (Zucker 2016, mzucker.github.io/2016/08/15/page-dewarping.html), hier ohne
-  // Optimierer: Verschiebungen werden direkt gemessen und geglättet.
-  function glaetten(c, zeilen) {
-    const W = c.width, H = c.height, med = (a) => { const v = [...a].sort((p, q) => p - q); return v.length ? v[v.length >> 1] : 0; };
-    const rows = zeilen.filter((q) => q.w && q.w.length && q.b && q.b.x1 - q.b.x0 > 3 * (q.b.y1 - q.b.y0));
-    if (rows.length < 5) return null;
-    const h = med(rows.flatMap((q) => q.w.map((w) => w.b.y1 - w.b.y0))) || 20;
-    const sy = [], sx = [];
-    for (const q of rows) {
-      const pts = [];
-      for (const w of q.w) {
-        const ww = w.b.x1 - w.b.x0, hh = w.b.y1 - w.b.y0, cx = (w.b.x0 + w.b.x1) / 2, cy = (w.b.y0 + w.b.y1) / 2;
-        if (hh > 1.6 * h || hh < 0.5 * h) continue; // verschmolzene oder Krümel-Kästen messen falsch
-        if (w.neig != null && ww > 3 * hh) for (const f of [0.12, 0.5, 0.88]) { const x = w.b.x0 + f * ww; pts.push([x, cy + w.neig * (x - cx)]); }
-        else pts.push([cx, cy]);
-      }
-      if (pts.length < 2) continue;
-      const yt = med(pts.map((p) => p[1]));
-      for (const [x, y] of pts) if (Math.abs(y - yt) < 0.7 * h) sy.push([x, y, y - yt]);
-    }
-    // senkrechte Kanten: Zeilenanfänge links und Zeilenenden rechts (nur die, die an der jeweiligen Kante stehen)
-    const x0m = med(rows.map((q) => q.b.x0)), x1m = med(rows.map((q) => q.b.x1));
-    for (const q of rows) { const cy = (q.b.y0 + q.b.y1) / 2; if (Math.abs(q.b.x0 - x0m) < 2.5 * h) sx.push([q.b.x0, cy, q.b.x0 - x0m]); if (Math.abs(q.b.x1 - x1m) < 2.5 * h) sx.push([q.b.x1, cy, q.b.x1 - x1m]); }
-    if (sy.length < 10) return null;
-    const gw = 24, sxg = W / gw, gh = Math.max(8, Math.ceil(H / h)), syg = H / gh;
-    const feld = (S, sigX, sigY, eps) => {
-      const D = new Float32Array((gw + 1) * (gh + 1));
-      for (let j = 0; j <= gh; j++) for (let i = 0; i <= gw; i++) {
-        const x = i * sxg, y = j * syg; let sw = 0, sd = 0;
-        for (const [px, py, d] of S) { const dy = (py - y) / sigY; if (dy > 3 || dy < -3) continue; const dx = (px - x) / sigX; const w = Math.exp(-0.5 * (dx * dx + dy * dy)); sw += w; sd += w * d; }
-        D[j * (gw + 1) + i] = sd / (sw + eps);
-      }
-      return D;
-    };
-    // nur senkrecht: ein waagrechtes Feld (aus Zeilenanfängen) scherte zentrierte Zeilen kursiv (Test 31.10., REWE 2)
-    const DY = feld(sy, W / 7, 1.0 * h, 0.15), DX = null;
-    let maxd = 0; for (const v of DY) maxd = Math.max(maxd, Math.abs(v)); if (DX) for (const v of DX) maxd = Math.max(maxd, Math.abs(v));
-    if (maxd < 0.12 * h) return null; // schon glatt
-    const bil = (D, x, y) => { const fx = Math.min(gw - 1e-3, Math.max(0, x / sxg)), fy = Math.min(gh - 1e-3, Math.max(0, y / syg)), i = fx | 0, j = fy | 0, u = fx - i, v = fy - j, o = j * (gw + 1) + i;
-      return (D[o] * (1 - u) + D[o + 1] * u) * (1 - v) + (D[o + gw + 1] * (1 - u) + D[o + gw + 2] * u) * v; };
-    const src = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
-    const out = document.createElement('canvas'); out.width = W; out.height = H;
-    const og = out.getContext('2d'), od = og.createImageData(W, H), o = od.data;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const dy = bil(DY, x, y), dx = DX ? bil(DX, x, y) : 0, X = Math.max(0, Math.min(W - 1.001, x + dx)), Y = Math.max(0, Math.min(H - 1.001, y + dy));
-      const xi = X | 0, yi = Y | 0, u = X - xi, v = Y - yi, a = (yi * W + xi) * 4, b = a + W * 4, k = (y * W + x) * 4;
-      for (let ch = 0; ch < 3; ch++) o[k + ch] = (src[a + ch] * (1 - u) + src[a + 4 + ch] * u) * (1 - v) + (src[b + ch] * (1 - u) + src[b + 4 + ch] * u) * v;
-      o[k + 3] = 255;
-    }
-    og.putImageData(od, 0, 0);
-    // Kästen aus dem Ausgangsbild ins geglättete Bild umrechnen (y' ≈ y − D)
-    const abbilden = (b) => { const xm = (b.x0 + b.x1) / 2; return { x0: b.x0, x1: b.x1, y0: b.y0 - bil(DY, xm, b.y0), y1: b.y1 - bil(DY, xm, b.y1) }; };
-    pl('glaetten', { max: +(maxd / h).toFixed(3), zeilen: zeilen.length });
-    return { canvas: out, max: maxd / h, abbilden };
-  }
   // ---------- Entfalten mit UVDoc (neuronal): Knicke und Wölbung des ganzen Blatts, auch zwischen den Zeilen ----------
   // Das Netz sagt auf einem 31×45-Gitter, wo jeder Punkt des glatten Blatts im Foto liegt; das Bild wird danach neu
   // abgetastet (bilinear, wie grid_sample mit align_corners in UVDoc/utils.py).
@@ -629,12 +570,12 @@ window.Bon = (() => {
       // Artikelname mit Steuerwort aus der Spaltenüberschrift („REPAIR ENGINE POWER SPRAYER (1UNIT) Tax“, SROIE 006): ohne Betrag
       // und mit mindestens zwei weiteren Wörtern ist es keine Steuerzeile (beendete sonst den Postenblock)
       if (art === 'steuer' && !bt.length && (n.replace(new RegExp(W.steuer.source, 'g'), ' ').replace(W.kopf, ' ').match(/[a-z]{3,}/g) || []).length >= 2 && !W.steuerTabelle.test(n)) art = 'sonst';
-      // Menge × Einzelpreis in der Zeile: „2 x 4,90“, „3 X 0,79 2,37“, „0,512 kg x 2,99 €/kg“
+      // Menge × Einzelpreis in der Zeile: „2 x 4,90“, „3 X 0,79 2,37“, „0,512 kg x 2,99 €/kg“; „0, 65“ (Lücke nach dem Komma) zählt mit
       let menge = null, einzel = null;
-      const mx = new RegExp(`(\\d{1,3}(?:[.,]\\d{1,3})?)\\s*(?:stk\\.?|st\\.?|kg|pcs|un\\.?|uni|l|ltr|lt|liter|litros|lts|gal|n[aä]chte?|noites|nights|n\\.|tage|dias|days|pers\\.?|personen|pax)?\\s*[x×*]\\s*(\\d+\\${dez}\\d{2,3})(?!\\d)`, 'i').exec(z.text);
-      const mx2 = !mx && new RegExp(`(\\d+\\${dez}\\d{2,3})\\s*(?:€|eur)?\\s*[x×*]\\s*(\\d{1,3})(?![.,]\\d)\\b`, 'i').exec(z.text); // „1,29 x 2“
-      if (mx) { menge = parseFloat(mx[1].replace(',', '.')); einzel = parseFloat(mx[2].replace(dez, '.')) * 100; if (Math.abs(einzel - Math.round(einzel)) < 1e-6) einzel = Math.round(einzel); }
-      else if (mx2) { menge = +mx2[2]; einzel = Math.round(parseFloat(mx2[1].replace(dez, '.')) * 100); }
+      const mx = new RegExp(`(\\d{1,3}(?:[.,]\\d{1,3})?)\\s*(?:stk\\.?|st\\.?|kg|pcs|un\\.?|uni|l|ltr|lt|liter|litros|lts|gal|n[aä]chte?|noites|nights|n\\.|tage|dias|days|pers\\.?|personen|pax)?\\s*[x×*]\\s*(\\d+\\${dez} ?\\d{2,3})(?!\\d)`, 'i').exec(z.text);
+      const mx2 = !mx && new RegExp(`(\\d+\\${dez} ?\\d{2,3})\\s*(?:€|eur)?\\s*[x×*]\\s*(\\d{1,3})(?![.,]\\d)\\b`, 'i').exec(z.text); // „1,29 x 2“
+      if (mx) { menge = parseFloat(mx[1].replace(',', '.')); einzel = parseFloat(mx[2].replace(' ', '').replace(dez, '.')) * 100; if (Math.abs(einzel - Math.round(einzel)) < 1e-6) einzel = Math.round(einzel); }
+      else if (mx2) { menge = +mx2[2]; einzel = Math.round(parseFloat(mx2[1].replace(' ', '').replace(dez, '.')) * 100); }
       else if (mengeVorn) { menge = mengeVorn; if (bt.length >= 2) einzel = bt[bt.length - 2].v; }
       else if (bt.length >= 2 && letzter.v > 0) {
         // Einzelpreis … Menge … Betrag in einer Zeile (Kassen mit Spalten „Preis Anz. MwSt Betrag“)
@@ -1073,6 +1014,10 @@ window.Bon = (() => {
     return null;
   }
 
+  function ladeScan() {
+    if (window.FasanScan) return Promise.resolve();
+    return new Promise((ok, fehler) => { const sc = document.createElement('script'); sc.src = new URL('scan.js', location.href).href; sc.onload = ok; sc.onerror = () => fehler(new Error('scan.js fehlt')); document.head.append(sc); });
+  }
   function ladeBonbild() {
     if (window.BonBild) return Promise.resolve();
     return new Promise((ok, fehler) => { const sc = document.createElement('script'); sc.src = new URL('bonbild.js', location.href).href; sc.onload = ok; sc.onerror = () => fehler(new Error('bonbild.js fehlt')); document.head.append(sc); });
@@ -1108,7 +1053,9 @@ window.Bon = (() => {
   // („entfaltet“): flach und ohne Hand. Das Glätten aus den Zeilen wird danach aus der endgültigen (richtigen) Zuordnung
   // berechnet; ein früher geglättetes Bild trägt eine eventuell verrutschte Zuordnung in sich (Test 31.10., REWE 3:
   // Betragsspalte gestaucht).
-  const anzeigeBonus = (name, gerade) => /^entfaltet(?!-foto)/.test(name) ? 90 : /^geglaettet2/.test(name) ? 70 : /^geglaettet/.test(name) ? 60 : /^entfaltet/.test(name) ? 45 : gerade && name !== 'foto' ? 30 : 0;
+  // 3.19: Vorrang hat der aus den Textzeilen begradigte Scan („gerade“, scan.js): Zeilen waagrecht, Rand senkrecht, auf das
+  // Papier zugeschnitten. Er ist zugleich das angezeigte Bild, Kästen und Bild passen also immer genau aufeinander.
+  const anzeigeBonus = (name, gerade) => /^gerade2/.test(name) ? 110 : /^gerade/.test(name) ? 100 : /^entfaltet(?!-foto)/.test(name) ? 45 : /^entfaltet/.test(name) ? 40 : gerade && name !== 'foto' ? 30 : 0;
   function guete(r, woerter) {
     const sicher = r.posten.filter((p) => p.sicher).length, gut = woerter.filter((x) => x.c > 70).length;
     // verrutschte Zuordnung (Betrag der Nachbarzeile) erzeugt Posten ohne Namen und Namenszeilen ohne Betrag – beides kostet
@@ -1266,7 +1213,8 @@ window.Bon = (() => {
     pl('foto', { breite: foto && foto.width, hoehe: foto && foto.height, ausschnitt: ausschnitt ? { breite: ausschnitt.canvas.width, hoehe: ausschnitt.canvas.height, ecken: ausschnitt.ecken.map((p) => p.map(Math.round)) } : null });
     let qr = await qrSuchen(daten);
     if (!qr && ausschnitt) qr = await qrKacheln(ausschnitt.roh) || await qrSuchen(ausschnitt.roh.toDataURL('image/jpeg', 0.9)) || await qrKacheln(ausschnitt.canvas);
-    const versuche = [], alle = []; let beste = null, glatt = null; const glaettungen = [];
+    const versuche = [], alle = []; let beste = null;
+    const scans = new Map(); // Leinwand → Scan-Objekt aus scan.js (für Anzeige und Papierrand)
     // lauf: leinwand wird gelesen, anzeige ist das Bild für die App (bei verbesserten Durchläufen das Original)
     const lauf = async (leinwand, psm, name, ecken, fort, anzeige, gerade = name !== 'foto') => {
       let v, woerter, roh = ''; const ts = performance.now();
@@ -1295,6 +1243,16 @@ window.Bon = (() => {
         if (leinwand.width) P.bilder.push({ name, bild: daumen(leinwand) });
       }
       const e = { g, r, v, roh, name, ecken, z, gerade }; alle.push(e);
+      // Vorschau für die Ladeanzeige: erstes Bild mit den gefundenen Zeilen, dann der begradigte Scan (sichtbarer Fortschritt)
+      if (melde && paddle && (alle.length === 1 || /^gerade/.test(name))) {
+        try {
+          const W0 = v.canvas.width, H0 = v.canvas.height, f = Math.min(1, 640 / W0), k = document.createElement('canvas');
+          k.width = Math.round(W0 * f); k.height = Math.round(H0 * f); k.getContext('2d').drawImage(v.canvas, 0, 0, k.width, k.height);
+          const sc = scans.get(v.canvas), bild = sc ? window.FasanScan.documentLook(k, { textHeight: sc.stats.textHeightOut * f }) : k;
+          melde({ status: 'vorschau', name, gerade: !!sc, seiten: `${W0} / ${H0}`, ar: +(W0 / H0).toFixed(4), bild: bild.toDataURL('image/jpeg', 0.8),
+            kaesten: woerter.slice(0, 400).map((x) => [x.b.x0 / W0, x.b.y0 / H0, x.b.x1 / W0, x.b.y1 / H0].map((q) => +q.toFixed(4))) });
+        } catch (err) { /* Vorschau ist nur Anzeige */ }
+      }
       if (!beste || g > beste.g) beste = e;
       lauf.lesbar = woerter.length ? woerter.filter((x) => x.c > 80).length / woerter.length : 0;
       return g;
@@ -1332,19 +1290,26 @@ window.Bon = (() => {
     if (paddle && beste && beste.gerade && !/^entfaltet/.test(beste.name)) {
       try { const ef = await entfalten(beste.v.lese); if (ef) await lauf(ef, 6, 'entfaltet', beste.ecken, stufe('Knicke und Wölbung werden entfaltet', 0.33, 0.37), null, true); } catch (e) { pf('uvdoc', e); }
     }
-    // 2b. Glätten (Wellen, Knicke) auf dem besten entzerrten Durchlauf und neu lesen: gerade Zeilen lesen sich besser
-    if (paddle && beste && beste.gerade && beste.z) {
+    // 2b. Begradigen wie ein Dokumentscanner (scan.js): aus den gelesenen Textzeilen eine glatte Abbildung Foto → Scan
+    //     (Zeilen waagrecht, linker Rand senkrecht, gleiche Schriftgröße), auf das Papier zugeschnitten. Danach neu lesen;
+    //     auf dem begradigten Bild sind die Zeilen besser bekannt, darum ein zweiter, feinerer Durchgang.
+    //     Ersetzt das frühere „Glätten“ (3.15–3.18), dessen Ergebnis auf dem Handy kaum sichtbar war.
+    // Grundlage: bester Durchlauf auf dem Foto selbst (ganz oder perspektivisch entzerrt), nicht das UVDoc-Bild – dessen
+    // Abtastung verzerrt die Schrift örtlich (Test 01.11., REWE 3: „TSE-Start“ doppelt so hoch, Fuß gestaucht)
+    const basis = alle.filter((e) => e.z && !/^entfaltet/.test(e.name)).sort((a, b) => b.g - a.g)[0] || beste;
+    if (paddle && basis && basis.z) {
       try {
-        const gl = glaetten(beste.v.lese, beste.z);
-        if (gl) {
-          glaettungen.push({ ...gl, quelle: beste.v.lese });
-          await lauf(gl.canvas, 6, 'geglaettet', beste.ecken, stufe('Knicke und Wellen werden geglättet', 0.36, 0.42), null, true);
-          // zweiter Durchgang: auf dem geglätteten Bild sind die Zeilen (Name + Preis gepaart) besser bekannt – Restwelle messen und
-          // nochmals ausgleichen, bis die Zeilen waagrecht liegen
-          const e1 = alle[alle.length - 1], gl2 = e1 && e1.z && glaetten(e1.v.lese, e1.z);
-          if (gl2 && gl2.max > 0.15) { glaettungen.push({ ...gl2, quelle: e1.v.lese }); await lauf(gl2.canvas, 6, 'geglaettet2', beste.ecken, stufe('Restliche Wellen werden ausgeglichen', 0.42, 0.46), null, true); }
+        await ladeScan();
+        const ts = performance.now(), s1 = window.FasanScan.straighten(basis.v.canvas, basis.z, { smooth: 0.05 });
+        pl('gerade', { stufe: 1, quelle: basis.name, ms: Math.round(performance.now() - ts), ok: !!s1, grund: s1 ? null : window.FasanScan.lastError, ...(s1 ? s1.stats : {}) });
+        if (s1) {
+          scans.set(s1.canvas, s1);
+          await lauf(s1.canvas, 6, 'gerade', null, stufe('Bon wird begradigt wie gescannt', 0.36, 0.42), null, true);
+          const e1 = alle[alle.length - 1], ts2 = performance.now(), s2 = e1 && e1.z && window.FasanScan.straighten(s1.canvas, e1.z, { smooth: 0.05 });
+          pl('gerade', { stufe: 2, ms: Math.round(performance.now() - ts2), ok: !!s2, grund: s2 ? null : window.FasanScan.lastError, ...(s2 ? s2.stats : {}) });
+          if (s2) { scans.set(s2.canvas, s2); await lauf(s2.canvas, 6, 'gerade2', null, stufe('Feinere Begradigung', 0.42, 0.46), null, true); }
         }
-      } catch (e) { pf('glaetten', e); }
+      } catch (e) { pf('gerade', e); }
     }
     // 3. PaddleOCR, Summe noch nicht bestätigt: weitere Durchläufe mit verbessertem Bild (Kontrast/Schärfe, dunkler)
     if (paddle && !(beste.r.pruefung && beste.r.pruefung.gesamtOk)) {
@@ -1418,21 +1383,24 @@ window.Bon = (() => {
     }
     if (paddle) { stufe('Fertig', 0.98, 1)({ progress: 1 }); if (window.FasanOCR.frei) window.FasanOCR.frei(); }
     let { r, v, roh, name, ecken } = ende;
-    // Gewinner ist der Durchlauf, aus dem geglättet wurde (oder ein verbesserter davon): trotzdem das geglättete Bild zeigen,
-    // die Kästen werden umgerechnet – der Bon sieht aus wie gescannt, die Lesung bleibt die bessere
-    glatt = glaettungen.filter((x) => v.canvas === x.quelle || v.lese === x.quelle).pop() || null;
-    // Gewinner wurde nie geglättet (z. B. erster Durchlauf nach dem Nachlesen besser): für die Anzeige jetzt glätten
-    if (!glatt && paddle && ende.gerade !== false && !/^geglaettet2/.test(name) && ende.z) { try { const g3 = glaetten(v.canvas, ende.z); if (g3) { glatt = { ...g3, quelle: v.canvas }; glaettungen.push(glatt); } } catch (e) { pf('glaetten-anzeige', e); } }
-    if (glatt) {
-      const ab = glatt.abbilden;
-      r = { ...r, zeilen: r.zeilen.map((z) => (z.b ? { ...z, b: ab(z.b) } : z)), posten: r.posten.map((p) => ({ ...p, rahmen: p.rahmen ? ab(p.rahmen) : p.rahmen, zusaetze: p.zusaetze ? p.zusaetze.map((x) => ({ ...x, rahmen: x.rahmen ? ab(x.rahmen) : x.rahmen })) : p.zusaetze })) };
-      v = { ...v, canvas: glatt.canvas }; name += '→geglättet';
-      // wurde das Ergebnis noch einmal geglättet, auch diese Stufe anwenden
-      const g2 = glaettungen.find((x) => x.quelle === glatt.canvas);
-      if (g2) { const ab2 = g2.abbilden; r = { ...r, zeilen: r.zeilen.map((z) => (z.b ? { ...z, b: ab2(z.b) } : z)), posten: r.posten.map((p) => ({ ...p, rahmen: p.rahmen ? ab2(p.rahmen) : p.rahmen, zusaetze: p.zusaetze ? p.zusaetze.map((x) => ({ ...x, rahmen: x.rahmen ? ab2(x.rahmen) : x.rahmen })) : p.zusaetze })) }; v = { ...v, canvas: g2.canvas }; name += '²'; }
+    // Anzeige = begradigter Scan. War der Gewinner ein begradigter Durchlauf, ist sein Bild schon der Scan; sonst wird
+    // das Bild des Gewinners jetzt aus dessen Zeilen begradigt und alle Kästen werden mit derselben Abbildung umgerechnet.
+    let scan = scans.get(v.canvas) || scans.get(v.lese) || null;
+    if (!scan && paddle && ende.z) {
+      try {
+        await ladeScan();
+        const s3 = window.FasanScan.straighten(v.canvas, ende.z, { smooth: 0.05 });
+        pl('gerade', { stufe: 'anzeige', quelle: name, ok: !!s3, grund: s3 ? null : window.FasanScan.lastError, ...(s3 ? s3.stats : {}) });
+        if (s3) {
+          const ab = s3.boxToScan;
+          r = { ...r, zeilen: r.zeilen.map((z) => (z.b ? { ...z, b: ab(z.b) } : z)), posten: r.posten.map((p) => ({ ...p, rahmen: p.rahmen ? ab(p.rahmen) : p.rahmen, zusaetze: p.zusaetze ? p.zusaetze.map((x) => ({ ...x, rahmen: x.rahmen ? ab(x.rahmen) : x.rahmen })) : p.zusaetze })) };
+          v = { ...v, canvas: s3.canvas, lese: s3.canvas }; scan = s3; name += '→gerade';
+        }
+      } catch (e) { pf('gerade-anzeige', e); }
     }
-    // Anzeige: begradigter Bon als „Scan“ (weißes Papier, ohne Schatten) – besser lesbar als das Foto; Original bleibt als foto
-    let anzeige = v.canvas; if (paddle) { try { anzeige = scanBild(v.canvas, true); } catch (e) { anzeige = v.canvas; pf('scanbild', e); } }
+    // Scan-Ansicht: Graustufen, weißes Papier, dunkle Schrift, weiche Kanten (scan.js documentLook); Farbe bleibt als „Foto“
+    let anzeige = v.canvas;
+    if (paddle) { try { anzeige = scan ? window.FasanScan.documentLook(scan.canvas, { textHeight: scan.stats.textHeightOut, paper: scan.paper }) : scanBild(v.canvas, true); } catch (e) { anzeige = v.canvas; pf('scanbild', e); } }
     for (const p of r.posten) p.schnipsel = schnipsel(anzeige, p.rahmen || (r.zeilen[p.zeile] && r.zeilen[p.zeile].b));
     // Gewinner mit Widerspruch in einer Zeile: nie „geprüft“ melden, auch wenn die Summe aufgeht
     if (r.pruefung && r.pruefung.gesamtOk && widersprueche(r)) r = { ...r, pruefung: { ...r.pruefung, gesamtOk: false, widerspruch: true } };
@@ -1445,6 +1413,6 @@ window.Bon = (() => {
     }
     return { ...r, protokoll, qr, quelle: name, motor: paddle ? 'paddle' : 'tesseract', versuche, breite: v.canvas.width, hoehe: v.canvas.height, bild: anzeige.toDataURL('image/jpeg', 0.85), bildOriginal: anzeige !== v.canvas ? v.canvas.toDataURL('image/jpeg', 0.82) : null, winkel: v.winkel, roh, ecken };
   }
-  const VERSION = '3.18';
+  const VERSION = '3.19';
   return { VERSION, abbruchProtokoll: () => { const x = P; if (x) { x.dauer = t0(); P = null; } return x; }, erkenne, verbessern, bonArt, bereit, qrKacheln, vorbereiten, worterLesen, lies, liesAllgemein, abgleich, zeilenAus, zeilenSpalten, cent, qrLesen, qrSuchen, paddleDa };
 })();
