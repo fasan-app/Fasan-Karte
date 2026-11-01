@@ -2,7 +2,7 @@
 
 Reisekarte der Fasan-Familie. Läuft im Handy-Browser, ohne Installation und ohne Konto. Erste Reise: Lissabon, 24.–26. Oktober 2026.
 
-**Öffnen:** https://cuk999.github.io/Fasan-Karte/ – im Browser-Menü „Zum Startbildschirm“ hinzufügen, dann startet sie wie eine App.
+**Öffnen:** https://fasan-app.github.io/Fasan-Karte/ – im Browser-Menü „Zum Startbildschirm“ hinzufügen, dann startet sie wie eine App.
 
 ## Was sie kann
 

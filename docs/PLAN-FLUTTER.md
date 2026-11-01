@@ -1,6 +1,6 @@
 # Plan: Fasan Karte als Flutter-App (Stand 01.11.2026)
 
-Entscheidungen des Nutzers vom 01.11.; Familienregeln in `CUK999/Fasan`. Ungeprüftes ist als „nicht geprüft“ markiert.
+Entscheidungen des Nutzers vom 01.11.; Familienregeln in `fasan-app/Fasan`. Ungeprüftes ist als „nicht geprüft“ markiert.
 
 ## Ziel
 
