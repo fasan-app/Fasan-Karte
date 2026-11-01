@@ -18,7 +18,11 @@ Zuerst lesen: `../fasan/ENTSCHEIDUNGEN.md` (Familie), dann diese Datei, dann `do
 
 ## Nächste Schritte
 
-1. Netz: Nutzer schaltet Paketquellen frei (Flutter/Dart/Android). Sonst nur CI-Builds wie bei der Kamera.
+0. Neu 01.11.: Die Rechnung entsteht zuerst als eigene App **Fasan Split** (`app.fasan.split`, eigenes Repo in der neuen
+   Organisation), danach zieht der Code hierher. `docs/PLAN-FLUTTER.md` Abschnitt „Rechnung“ gilt für Split.
+   Testwerkzeug und synthetische Bons: privates Repo `fasan-diagnose/tests`.
+
+1. Netz frei seit 01.11. (Flutter, pub.dev, Android-SDK, Gradle erreichbar geprüft).
 2. Recherche Design (Ästhetik, Bewegung, Bedienpsychologie, Rams/Ive) → `docs/recherche/`.
 3. `fasan_ui` anlegen: Tokens, Stile, Effekte, Bewegung, Bausteine; Galerie-App zum Vergleichen.
 4. Karten-App `app/`: Grundgerüst, Rechnung mit vier umschaltbaren Zuordnen-Varianten, Erkennung nativ (ONNX Runtime).
