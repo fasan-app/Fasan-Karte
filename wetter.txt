@@ -1,5 +1,5 @@
-IPMA Felder: ['country', 'data', 'dataUpdate', 'globalIdLocal', 'owner'] erste Zeile: {"precipitaProb": "0.0", "tMin": "13.8", "tMax": "25.5", "predWindDir": "NE", "idWeatherType": 1, "classWindSpeed": 1, "longitude": "-9.1286", "forecastDate": "2026-11-01", "latitude": "38.7660"}
+IPMA Felder: ['country', 'data', 'dataUpdate', 'globalIdLocal', 'owner'] erste Zeile: {"precipitaProb": "0.0", "tMin": "14.0", "tMax": "25.7", "predWindDir": "NW", "idWeatherType": 1, "classWindSpeed": 1, "longitude": "-9.1286", "forecastDate": "2026-11-02", "latitude": "38.7660"}
 IPMA Wettertypen erste Zeile: {"descWeatherTypeEN": "--", "descWeatherTypePT": "---", "idWeatherType": -99}
 Open-Meteo Felder: ['precipitation', 'precipitation_probability', 'temperature_2m', 'time', 'weather_code'] ['sunrise', 'sunset', 'time'] utc_offset_seconds: 0
-Sonne (Lissabon-Zeit): [{'datum': '2026-11-01', 'auf': '07:03', 'unter': '17:36'}, {'datum': '2026-11-02', 'auf': '07:04', 'unter': '17:35'}, {'datum': '2026-11-03', 'auf': '07:05', 'unter': '17:34'}, {'datum': '2026-11-04', 'auf': '07:06', 'unter': '17:33'}]
-wetter.json: {'stand': '2026-11-01T23:40+00:00', 'ort': 'Lissabon', 'ipma': 5, 'om': 96}
+Sonne (Lissabon-Zeit): [{'datum': '2026-11-02', 'auf': '07:04', 'unter': '17:35'}, {'datum': '2026-11-03', 'auf': '07:05', 'unter': '17:34'}, {'datum': '2026-11-04', 'auf': '07:06', 'unter': '17:33'}, {'datum': '2026-11-05', 'auf': '07:07', 'unter': '17:32'}]
+wetter.json: {'stand': '2026-11-02T06:22+00:00', 'ort': 'Lissabon', 'ipma': 5, 'om': 96}
