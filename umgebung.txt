@@ -1,1 +1,5 @@
-umgebung.json ist jünger als 20 Stunden, kein neuer Abruf
+https://overpass-api.de/api/interpreter Versuch 1: HTTP Error 502: Bad Gateway
+https://overpass-api.de/api/interpreter Versuch 2: HTTP Error 502: Bad Gateway
+https://overpass.private.coffee/api/interpreter Versuch 1: The read operation timed out
+https://overpass.private.coffee/api/interpreter Versuch 2: The read operation timed out
+Overpass nicht erreichbar, alte Datei bleibt
