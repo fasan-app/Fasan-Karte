@@ -1,5 +1,6 @@
-IPMA Felder: ['country', 'data', 'dataUpdate', 'globalIdLocal', 'owner'] erste Zeile: {"precipitaProb": "4.0", "tMin": "8.8", "tMax": "18.8", "predWindDir": "W", "idWeatherType": 2, "classWindSpeed": 1, "longitude": "-9.1286", "forecastDate": "2026-11-05", "latitude": "38.7660"}
-IPMA Wettertypen erste Zeile: {"descWeatherTypeEN": "--", "descWeatherTypePT": "---", "idWeatherType": -99}
+ipma Versuch 1 fehlgeschlagen: <urlopen error timed out>
+ipma Versuch 2 fehlgeschlagen: <urlopen error timed out>
+ipma Versuch 3 fehlgeschlagen: <urlopen error timed out>
 Open-Meteo Felder: ['precipitation', 'precipitation_probability', 'temperature_2m', 'time', 'weather_code'] ['sunrise', 'sunset', 'time'] utc_offset_seconds: 0
 Sonne (Lissabon-Zeit): [{'datum': '2026-11-05', 'auf': '07:07', 'unter': '17:32'}, {'datum': '2026-11-06', 'auf': '07:09', 'unter': '17:31'}, {'datum': '2026-11-07', 'auf': '07:10', 'unter': '17:30'}, {'datum': '2026-11-08', 'auf': '07:11', 'unter': '17:29'}]
-wetter.json: {'stand': '2026-11-05T18:05+00:00', 'ort': 'Lissabon', 'ipma': 5, 'om': 96}
+wetter.json: {'stand': '2026-11-05T23:41+00:00', 'ort': 'Lissabon', 'om': 96}

@@ -1,4 +1,1 @@
-https://overpass-api.de/api/interpreter Versuch 1: HTTP Error 502: Bad Gateway
-Server: https://overpass-api.de/api/interpreter
-{'s': 407, 'wc': 330, 'apo': 424, 'atm': 618, 'wasser': 582, 'kh': 9}
-Supermarkt-Marken: [('Pingo Doce', 79), ('Continente Bom Dia', 47), ('Lidl', 32), ('Aldi', 17), ('Celeiro', 16), ('', 15), ('My Auchan', 13), ('Meu Super', 13), ('Continente Modelo', 7), ('Amanhecer', 6), ('Spar', 5), ('Continente', 5), ('Auchan', 4), ('Auchan Supermercado', 3), ('Minipreço', 3), ('Intermarché', 3), ('Supercor', 2), ('O Pomar', 2), ('Frescos e Ca.', 2), ('Supermercado Chen', 2), ('Mercadona', 2), ('Covirán', 1), ('China MegaStore', 1), ('Supermercado C.C. Boa-Hora', 1), ('Global Food Store', 1), ('Tradicional', 1), ('Supermercado El Corte Inglés', 1), ('Fresco Pomar minimercado', 1), ('Loja Gourmet', 1), ('Vale do Sol', 1)]
+umgebung.json ist jünger als 20 Stunden, kein neuer Abruf
