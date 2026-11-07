@@ -2,4 +2,4 @@ IPMA Felder: ['country', 'data', 'dataUpdate', 'globalIdLocal', 'owner'] erste Z
 IPMA Wettertypen erste Zeile: {"descWeatherTypeEN": "--", "descWeatherTypePT": "---", "idWeatherType": -99}
 Open-Meteo Felder: ['precipitation', 'precipitation_probability', 'temperature_2m', 'time', 'weather_code'] ['sunrise', 'sunset', 'time'] utc_offset_seconds: 0
 Sonne (Lissabon-Zeit): [{'datum': '2026-11-07', 'auf': '07:10', 'unter': '17:30'}, {'datum': '2026-11-08', 'auf': '07:11', 'unter': '17:29'}, {'datum': '2026-11-09', 'auf': '07:12', 'unter': '17:28'}, {'datum': '2026-11-10', 'auf': '07:13', 'unter': '17:27'}]
-wetter.json: {'stand': '2026-11-07T08:54+00:00', 'ort': 'Lissabon', 'ipma': 5, 'om': 96}
+wetter.json: {'stand': '2026-11-07T16:30+00:00', 'ort': 'Lissabon', 'ipma': 5, 'om': 96}
