@@ -1,0 +1,15 @@
+tesseract.js-5.1.1.tgz
+tesseract.js-core-5.1.1.tgz
+tesseract.js-data-por-1.0.0.tgz
+3938657 ./tesseract.js-core-5.1.1/package/tesseract-core-simd-lstm.wasm.js
+4735153 ./tesseract.js-core-5.1.1/package/tesseract-core-simd.wasm.js
+11358 ./tesseract.js-core-5.1.1/package/LICENSE
+4734777 ./tesseract.js-core-5.1.1/package/tesseract-core.wasm.js
+3938277 ./tesseract.js-core-5.1.1/package/tesseract-core-lstm.wasm.js
+66695 ./tesseract.js-5.1.1/package/dist/tesseract.min.js
+123724 ./tesseract.js-5.1.1/package/dist/worker.min.js
+67175 ./tesseract.js-5.1.1/package/dist/tesseract.esm.min.js
+11357 ./tesseract.js-5.1.1/package/LICENSE.md
+6755162 ./tesseract.js-data-por-1.0.0/package/4.0.0/por.traineddata.gz
+1392239 ./tesseract.js-data-por-1.0.0/package/4.0.0_best_int/por.traineddata.gz
+Sprachdaten: tesseract.js-data-por-1.0.0/package/4.0.0_best_int/por.traineddata.gz

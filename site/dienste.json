@@ -1,0 +1,4 @@
+{
+  "hinweis": "Adressen fremder Dienste. Ein Eintrag null schaltet den Dienst in der App ab, ohne App-Änderung (Nominatim-Richtlinie, operations.osmfoundation.org/policies/nominatim).",
+  "suche": "https://nominatim.openstreetmap.org/search"
+}

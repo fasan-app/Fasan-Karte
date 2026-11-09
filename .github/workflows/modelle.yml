@@ -1,0 +1,82 @@
+name: Modelle bauen (UVDoc als ONNX)
+
+# Baut das Entzerrungsmodell UVDoc (Verhoeven, Magne, Sorkine-Hornung, SIGGRAPH Asia 2023; MIT-Lizenz,
+# github.com/tanguymagne/UVDoc) aus den veröffentlichten PyTorch-Gewichten in ONNX um, damit es im Handy
+# mit onnxruntime-web läuft. Ergebnis landet im Zweig „modelle“ (nicht in main, wegen der Größe).
+# Gewichte und Code werden über Commit und SHA-256 festgenagelt: nichts Ungeprüftes kommt in die App.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/modelle.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  uvdoc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: UVDoc holen (fester Commit) und Gewichte prüfen
+        run: |
+          git clone https://github.com/tanguymagne/UVDoc uvdoc
+          cd uvdoc && git checkout 4c9b82b537057aff2526e6dd118a847cdd072e82
+          echo "7e90861b8a516eb4bc51f84bd889cb77275743d2d1d3ca8091951ec9f2b7da23  model/best_model.pkl" | sha256sum -c -
+
+      - name: PyTorch (CPU) und ONNX installieren
+        run: pip install --index-url https://download.pytorch.org/whl/cpu torch==2.4.1 && pip install onnx==1.16.2 onnxruntime==1.19.2 numpy==1.26.4
+
+      - name: Nach ONNX umwandeln und gegen PyTorch prüfen
+        working-directory: uvdoc
+        run: |
+          cat > export.py <<'PY'
+          import torch, numpy as np, onnx, onnxruntime as ort
+          from model import UVDocnet
+          torch.manual_seed(0)
+          def laden():
+              m = UVDocnet(num_filter=32, kernel_size=5)
+              ck = torch.load('model/best_model.pkl', map_location='cpu', weights_only=False)
+              m.load_state_dict(ck['model_state']); m.eval()
+              for mod in m.modules():   # In-place-ReLU kann beim Export zu falschen Graphen führen
+                  if isinstance(mod, torch.nn.ReLU): mod.inplace = False
+              return m
+          class Nur2D(torch.nn.Module):
+              def __init__(s, m): super().__init__(); s.m = m
+              def forward(s, x): return s.m(x)[0]
+          # glattes Testbild statt Rauschen (näher an echten Fotos)
+          yy, xx = torch.meshgrid(torch.linspace(0, 1, 712), torch.linspace(0, 1, 488), indexing='ij')
+          x = torch.stack([0.8 - 0.3 * xx, 0.7 + 0.2 * yy, 0.6 + 0.1 * xx * yy]).unsqueeze(0)
+          m = Nur2D(laden())
+          with torch.no_grad(): ref = m(x).numpy()
+          bester = None
+          for opset in (17, 13):
+              torch.onnx.export(m, x, f'uvdoc{opset}.onnx', input_names=['bild'], output_names=['gitter'], opset_version=opset, do_constant_folding=True)
+              onnx.checker.check_model(onnx.load(f'uvdoc{opset}.onnx'))
+              out = ort.InferenceSession(f'uvdoc{opset}.onnx').run(None, {'bild': x.numpy()})[0]
+              d = float(np.abs(out - ref).max()); print('opset', opset, 'Form', out.shape, 'größte Abweichung', d, 'Wertebereich', float(ref.min()), float(ref.max()))
+              if bester is None or d < bester[1]: bester = (opset, d)
+          import shutil; shutil.copy(f'uvdoc{bester[0]}.onnx', 'uvdoc.onnx'); print('gewählt', bester)
+          assert bester[1] < 1e-3
+          PY
+          set -o pipefail
+          python3 export.py 2>&1 | tee ../export-log.txt
+          sha256sum uvdoc.onnx | tee uvdoc.onnx.sha256
+          ls -la uvdoc.onnx
+
+      - name: In Zweig „modelle“ ablegen
+        run: |
+          mkdir -p out && cp uvdoc/uvdoc.onnx uvdoc/uvdoc.onnx.sha256 uvdoc/LICENSE out/
+          mv out/LICENSE out/UVDoc-LICENSE.txt
+          cd out && git init -q && git checkout -q -b modelle
+          git config user.name "github-actions" && git config user.email "github-actions@users.noreply.github.com"
+          git add . && git commit -q -m "UVDoc als ONNX (Commit 4c9b82b, Gewichte 7e90861b)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" modelle
+
+      - name: Protokoll ablegen (auch bei Fehler, Zweig „modelle-log“)
+        if: always()
+        run: |
+          mkdir -p log && cp export-log.txt log/ 2>/dev/null || echo "kein Protokoll" > log/export-log.txt
+          cd log && git init -q && git checkout -q -b modelle-log
+          git config user.name "github-actions" && git config user.email "github-actions@users.noreply.github.com"
+          git add . && git commit -q -m "Protokoll Modellbau" && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" modelle-log

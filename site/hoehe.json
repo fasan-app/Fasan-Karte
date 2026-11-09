@@ -1,0 +1,15 @@
+{
+ "stand": "2026-10-25T09:39+00:00",
+ "quelle": "Copernicus DEM GLO-30 (AWS Open Data, registry.opendata.aws/copernicus-dem)",
+ "hinweis": "produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved",
+ "haftung": "The organisations in charge of the Copernicus programme by law or by delegation do not incur any liability for any use of the Copernicus WorldDEM-30.",
+ "art": "Oberflächenmodell (DSM), Gebäude und Bäume enthalten",
+ "west": -9.450138888888889,
+ "nord": 38.80013888888889,
+ "dx": 0.0002777777777777778,
+ "dy": 0.0002777777777777778,
+ "breite": 1332,
+ "hoehe": 504,
+ "skala": 0.1,
+ "format": "int16 LE, Zeilen von Nord nach Süd, je Zeile Differenzen, gzip"
+}

@@ -1,0 +1,102 @@
+{
+  "A": {
+    "titel": "Plan A",
+    "untertitel": "Empfehlung: Klassiker mit Geheimtipps",
+    "tage": {
+      "sa": [
+        {"hinweis": "Metro Rato → Martim Moniz"},
+        {"ort": "Funicular da Graça (Talstation)"},
+        {"ort": "Miradouro da Graça"},
+        {"ort": "Feira da Ladra"},
+        {"ort": "Santa Clara dos Cogumelos", "zeit": "13:00", "text": "Mittagessen (13–15:30)", "alt": ["Taberna Albricoque"]},
+        {"ort": "Miradouro das Portas do Sol"},
+        {"ort": "Miradouro de Santa Luzia"},
+        {"hinweis": "Durch die Alfama bergab"},
+        {"ort": "Sé de Lisboa"},
+        {"ort": "Museu do Dinheiro"},
+        {"ort": "Praça do Comércio"},
+        {"ort": "Museu Nacional de Arte Contemporânea do Chiado", "text": "Museum 10 €, Einlass bis 17:30, schließt um 18 Uhr. Ein Gratis-Konzert ist nicht belegt"},
+        {"ort": "Casa do Alentejo", "text": "Abendessen in der Taberna"},
+        {"hinweis": "Metro Restauradores → Rato"}
+      ],
+      "so": [
+        {"hinweis": "Heute Nacht wurden die Uhren 1 Stunde zurückgestellt"},
+        {"hinweis": "Bus 758 → Tram 15E nach Belém"},
+        {"ort": "Mosteiro dos Jerónimos", "text": "Kirche gratis, Kloster 18 €"},
+        {"ort": "Pastéis de Belém"},
+        {"ort": "Padrão dos Descobrimentos"},
+        {"ort": "Torre de Belém", "text": "Von außen anschauen"},
+        {"ort": "O Frade", "zeit": "12:30", "text": "Mittagessen, für 6 reservieren"},
+        {"ort": "Museu Calouste Gulbenkian", "zeit": "15:00", "text": "Sonntags ab 14 Uhr gratis (e-konomista.pt, 12.10.2026)"},
+        {"ort": "Jardim do Príncipe Real"},
+        {"ort": "Faz Frio", "text": "Abendessen", "alt": ["Tascardoso"]}
+      ],
+      "mo": [
+        {"ort": "Jardim das Amoreiras", "text": "Aquädukt-Bögen"},
+        {"ort": "Coelho da Rocha", "text": "Mittagessen in Campo de Ourique", "alt": ["Granos Espaço Vegetariano"]},
+        {"ort": "Cemitério dos Prazeres"},
+        {"hinweis": "Tram 28 ab der Endstation, dort gibt es Sitzplätze"},
+        {"ort": "Miradouro de Santa Catarina", "text": "Sonnenuntergang"},
+        {"ort": "Estrela da Bica", "text": "Abendessen, reservieren"},
+        {"ort": "A Tasca do Chico", "zeit": "21:00", "text": "Fado, vor 20:30 da sein"}
+      ]
+    }
+  },
+  "B": {
+    "titel": "Plan B",
+    "untertitel": "Geheimtipps",
+    "tage": {
+      "sa": [
+        {"ort": "Padaria São Roque"},
+        {"ort": "Igreja de São Roque"},
+        {"ort": "Reservatório da Mãe d'Água"},
+        {"ort": "Largo do Intendente", "text": "Mouraria und Intendente"},
+        {"ort": "Mercado de Arroios (FLIFA)"},
+        {"ort": "Gal Café"},
+        {"ort": "Miradouro da Senhora do Monte"},
+        {"ort": "The Food Temple", "text": "Abendessen"},
+        {"ort": "Pavilhão Chinês"}
+      ],
+      "so": [
+        {"hinweis": "Heute Nacht wurden die Uhren 1 Stunde zurückgestellt"},
+        {"ort": "Praça de São Paulo (Arte na Praça)"},
+        {"ort": "Kong", "zeit": "12:00", "text": "Mittagessen"},
+        {"ort": "Fähre Cais do Sodré"},
+        {"ort": "Rua do Ginjal"},
+        {"ort": "Jardim do Rio und Elevador da Boca do Vento", "text": "Sonnenuntergang"},
+        {"hinweis": "Mit der Fähre zurück"}
+      ],
+      "mo": [
+        {"ort": "Miradouro de Santo Amaro"},
+        {"ort": "LX Factory"},
+        {"ort": "Solar dos Nunes"},
+        {"ort": "Ao 26 Vegan Food Project"},
+        {"ort": "A Tasca do Chico", "zeit": "21:00", "text": "Fado, vor 20:30 da sein"}
+      ]
+    }
+  },
+  "C": {
+    "titel": "Plan C",
+    "untertitel": "Wenig Steigung",
+    "tage": {
+      "sa": [
+        {"hinweis": "Mit Tram 24E zum Chiado"},
+        {"ort": "Tram 24E Start Praça Luís de Camões"},
+        {"hinweis": "Durch die Baixa"},
+        {"ort": "Museu do Dinheiro"},
+        {"ort": "Casa do Alentejo", "text": "Mittagessen"},
+        {"ort": "Elevador do Castelo"},
+        {"ort": "Miradouro de Santa Luzia"},
+        {"hinweis": "Tram 28 oder 12E zurück"},
+        {"ort": "Museu Nacional de Arte Contemporânea do Chiado", "text": "Museum 10 €, Einlass bis 17:30, schließt um 18 Uhr. Ein Gratis-Konzert ist nicht belegt"}
+      ],
+      "so": "A",
+      "mo": [
+        {"hinweis": "Zug ab Cais do Sodré nach Cascais"},
+        {"ort": "House of Wonders", "text": "Mittagessen"},
+        {"hinweis": "Promenade bis Estoril"},
+        {"ort": "Miradouro de São Pedro de Alcântara", "text": "Abends"}
+      ]
+    }
+  }
+}

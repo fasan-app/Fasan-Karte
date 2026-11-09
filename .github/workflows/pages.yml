@@ -1,0 +1,172 @@
+name: Karte bauen und veroeffentlichen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '23 */2 * * *'   # Wetter etwa alle 2 Stunden (GitHub startet Zeitpläne teils verspätet)
+
+permissions:
+  contents: write   # Daten, Bilder und Leaflet zurueck ins Repo schreiben
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Orte pruefen und anreichern (OSM, Wikipedia, Wikimedia Commons)
+        run: python3 tools/daten.py
+
+      - name: Wetter holen (IPMA, Open-Meteo; nur hier, nie vom Handy)
+        run: python3 tools/wetter.py 2>&1 | tee wetter.txt || true
+
+      - name: Umgebung aus OSM holen (Supermärkte, WC, Apotheken, Geld, Wasser; höchstens täglich)
+        run: python3 tools/umgebung.py 2>&1 | tee umgebung.txt || true
+
+      - name: Stadtführer aus Wikipedia (Artikel mit Koordinaten; höchstens alle 6 Tage)
+        run: python3 tools/stadtfuehrer.py 2>&1 | tee stadtfuehrer.txt || true
+
+      - name: Höhenraster (Copernicus DEM GLO-30, AWS Open Data; höchstens alle 30 Tage)
+        run: |
+          pip install --quiet rasterio numpy 2>&1 | tail -2 || true
+          python3 tools/hoehe.py 2>&1 | tee hoehe.txt || true
+
+      - name: Länder-Grundinfos (Wikidata, CC0; höchstens alle 30 Tage)
+        run: python3 tools/laender.py 2>&1 | tee laender.txt || true
+
+      - name: Fußwege der Pläne mit Höhenmetern (Valhalla FOSSGIS, 1 Anfrage/s, Cache; Copernicus-Raster)
+        run: python3 tools/wege.py 2>&1 | tee wege.txt || true
+
+      - name: Leaflet einbinden (einmalig ins Repo)
+        run: |
+          if [ ! -f site/vendor/leaflet/leaflet.js ]; then
+            npm pack leaflet@1.9.4 --silent
+            tar -xzf leaflet-1.9.4.tgz
+            mkdir -p site/vendor/leaflet
+            cp -r package/dist/. site/vendor/leaflet/
+            rm -rf package leaflet-1.9.4.tgz
+          fi
+
+      - name: QR-Code-Bibliothek einbinden (qrcode-generator, MIT; einmalig ins Repo)
+        run: |
+          if [ ! -f site/vendor/qrcode/qrcode.js ]; then
+            npm pack qrcode-generator@1.4.4 --silent || npm pack qrcode-generator --silent
+            mkdir -p qr && tar -xzf qrcode-generator-*.tgz -C qr
+            mkdir -p site/vendor/qrcode
+            cp qr/package/qrcode.js site/vendor/qrcode/
+            cp qr/package/LICENSE* site/vendor/qrcode/ 2>/dev/null || true
+            rm -rf qr qrcode-generator-*.tgz
+          fi
+
+      - name: Nostr-Bibliothek einbinden (nostr-tools, Unlicense; einmalig ins Repo)
+        run: |
+          if [ ! -f site/vendor/nostr/package.json ]; then
+            npm pack nostr-tools@2 --silent
+            mkdir -p nt && tar -xzf nostr-tools-*.tgz -C nt
+            mkdir -p site/vendor/nostr
+            cp nt/package/package.json nt/package/LICENSE* site/vendor/nostr/ 2>/dev/null || true
+            cp nt/package/lib/nostr.bundle.js site/vendor/nostr/ 2>/dev/null || true
+            (cd nt/package && find . -maxdepth 3 -type f | sort) > site/vendor/nostr/DATEIEN.txt
+            rm -rf nt nostr-tools-*.tgz
+          fi
+
+      - name: Texterkennung einbinden (tesseract.js, Apache-2.0; einmalig ins Repo)
+        run: |
+          if [ ! -f site/vendor/tesseract/tesseract.min.js ]; then
+            mkdir -p site/vendor/tesseract/core site/vendor/tesseract/lang tz
+            cd tz
+            npm pack tesseract.js@5 tesseract.js-core@5 @tesseract.js-data/por@1 --silent
+            for f in *.tgz; do mkdir -p "${f%.tgz}"; tar -xzf "$f" -C "${f%.tgz}"; done
+            { ls *.tgz; find . -type f \( -name '*.wasm.js' -o -name '*.traineddata.gz' -o -name '*.min.js' -o -name 'LICENSE*' \) -printf '%s %p\n'; } > ../site/vendor/tesseract/DATEIEN.txt
+            T=$(ls -d tesseract.js-5* | head -1); C=$(ls -d tesseract.js-core-5* | head -1); L=$(ls -d tesseract.js-data-por-* | head -1)
+            cp $T/package/dist/tesseract.min.js $T/package/dist/worker.min.js ../site/vendor/tesseract/
+            cp $T/package/LICENSE* ../site/vendor/tesseract/ 2>/dev/null || true
+            cp $T/package/package.json ../site/vendor/tesseract/package-tesseract.json
+            cp $C/package/tesseract-core*.wasm.js ../site/vendor/tesseract/core/
+            cp $C/package/package.json ../site/vendor/tesseract/package-core.json
+            LG=$(find $L -path '*4.0.0_best_int*' -name 'por.traineddata.gz' | head -1); [ -z "$LG" ] && LG=$(find $L -name 'por.traineddata.gz' | head -1)
+            cp "$LG" ../site/vendor/tesseract/lang/por.traineddata.gz
+            echo "Sprachdaten: $LG" >> ../site/vendor/tesseract/DATEIEN.txt
+            cd .. && rm -rf tz
+          fi
+
+      - name: QR-Leser einbinden (jsQR 1.4.0, Apache-2.0; einmalig ins Repo)
+        run: |
+          if [ ! -f site/vendor/jsqr/jsQR.js ]; then
+            mkdir -p site/vendor/jsqr qz && cd qz
+            npm pack jsqr@1.4.0 --silent && tar -xzf jsqr-1.4.0.tgz
+            cp package/dist/jsQR.js package/LICENSE* package/package.json ../site/vendor/jsqr/ 2>/dev/null || cp package/dist/jsQR.js ../site/vendor/jsqr/
+            cd .. && rm -rf qz
+          fi
+
+      # Neuronale Texterkennung (Recherche 29.10.2026): PaddleOCR PP-OCRv5 (Apache-2.0) als ONNX aus ppu-paddle-ocr-models
+      # (Git LFS), ausgeführt mit onnxruntime-web (MIT, nur WASM, ohne Threads: GitHub Pages kann keine COOP/COEP-Header setzen).
+      # Modelle werden gegen feste SHA-256 geprüft (Werte aus den LFS-Zeigern im Modell-Repo). Scheitert etwas, bleibt der
+      # Ordner leer und die App nutzt weiter Tesseract; die Seite wird trotzdem gebaut.
+      - name: Neuronale Texterkennung einbinden (PaddleOCR + onnxruntime-web; einmalig ins Repo)
+        run: |
+          if [ ! -f site/vendor/paddle/ort.wasm.min.js ]; then
+            ( set -e
+              mkdir -p pz && cd pz
+              npm pack onnxruntime-web@1 --silent
+              mkdir ow && tar -xzf onnxruntime-web-*.tgz -C ow
+              echo "onnxruntime-web: $(ls onnxruntime-web-*.tgz)"; ls -la ow/package/dist | grep -E "ort\.wasm|simd-threaded\.(wasm|mjs)$" || true
+              GIT_LFS_SKIP_SMUDGE=1 git clone -q --depth 1 https://github.com/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models m
+              ( cd m && echo "Modell-Repo: $(git rev-parse HEAD)" && git lfs pull --include="detection/PP-OCRv5_mobile_det_infer.onnx,recognition/multi/latin/v5/latin_PP-OCRv5_mobile_rec_infer.onnx" )
+              printf '%s\n' \
+                "d7fe3ea74652890722c0f4d02458b7261d9f5ae6c92904d05707c9eb155c7924  m/detection/PP-OCRv5_mobile_det_infer.onnx" \
+                "497dbed20b7fd86334c9deb5082c2958982a316bb16e3589ebc6502cd85cae79  m/recognition/multi/latin/v5/latin_PP-OCRv5_mobile_rec_infer.onnx" \
+                "7274e68c7675355e45dd75c360c83faa0d0624de33a704c799a7da8897662201  m/recognition/multi/latin/v5/ppocrv5_latin_dict.txt" > summen
+              sha256sum -c summen
+              Z=../site/vendor/paddle; mkdir -p $Z
+              cp ow/package/dist/ort.wasm.min.js ow/package/dist/ort-wasm-simd-threaded.wasm ow/package/dist/ort-wasm-simd-threaded.mjs $Z/
+              cp ow/package/LICENSE $Z/LICENSE-onnxruntime-web 2>/dev/null || true
+              cp ow/package/package.json $Z/package-onnxruntime-web.json
+              cp m/detection/PP-OCRv5_mobile_det_infer.onnx $Z/det.onnx
+              cp m/recognition/multi/latin/v5/latin_PP-OCRv5_mobile_rec_infer.onnx $Z/rec-latin.onnx
+              cp m/recognition/multi/latin/v5/ppocrv5_latin_dict.txt $Z/dict-latin.txt
+              { echo "Stand: $(date -u +%F)"; ls onnxruntime-web-*.tgz; cat summen; (cd m && git rev-parse HEAD); } > $Z/DATEIEN.txt
+            ) 2>&1 | tee paddle.txt
+            if [ ! -f site/vendor/paddle/rec-latin.onnx ]; then echo "PaddleOCR nicht eingebunden, Tesseract bleibt" | tee -a paddle.txt; rm -rf site/vendor/paddle; fi
+            rm -rf pz
+          fi
+
+      - name: Ergebnisse im Repo sichern
+        run: |
+          git add site/orte.json site/bilder data/cache.json data/pruefbericht.md site/vendor
+          if [ -f site/umgebung.json ]; then git add site/umgebung.json; fi
+          if [ -f site/stadtfuehrer.json ]; then git add site/stadtfuehrer.json; fi
+          for f in site/hoehe.json site/hoehe.bin site/laender.json site/wege.json data/wege-cache.json; do if [ -f "$f" ]; then git add "$f"; fi; done
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Daten aktualisiert"
+            # Zwei Läufe kurz nacheinander: Konflikt in den erzeugten Dateien heißt, ein neuerer Lauf erzeugt sie ohnehin neu
+            if git pull --rebase origin main; then git push; else git rebase --abort; echo "Daten-Commit übersprungen: neuerer Stand im Repo"; fi
+          fi
+
+      - name: Protokoll sichern (Branch ci-logs)
+        if: always()
+        continue-on-error: true
+        run: |
+          bash tools/ci-log.sh wetter.txt site/wetter.json umgebung.txt stadtfuehrer.txt hoehe.txt laender.txt wege.txt paddle.txt
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

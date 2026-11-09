@@ -1,0 +1,4 @@
+UVDoc (Verhoeven, Magne, Sorkine-Hornung, SIGGRAPH Asia 2023), MIT-Lizenz, github.com/tanguymagne/UVDoc
+Commit 4c9b82b537057aff2526e6dd118a847cdd072e82, Gewichte model/best_model.pkl sha256 7e90861b8a516eb4bc51f84bd889cb77275743d2d1d3ca8091951ec9f2b7da23
+nach ONNX (opset 17, nur 2D-Gitter) umgewandelt mit .github/workflows/modelle.yml; Abweichung zu PyTorch 3,3e-6
+uvdoc.onnx sha256 bf9dbff2d8cd537ae2b8911c85ca3603cac5de50afc45361bd773d5230a30d05

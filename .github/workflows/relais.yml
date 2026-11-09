@@ -1,0 +1,27 @@
+name: Nostr-Relays pruefen
+
+on:
+  push:
+    branches: [main]
+    paths: ['tools/relaistest.mjs', '.github/workflows/relais.yml', 'site/funk.js']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # nur fuer das Protokoll im Branch ci-logs
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: WebSocket fuer Node (ws, MIT; nur im Test)
+        run: npm install --no-save --no-package-lock ws@8.18.0
+      - name: Relays testen (senden, empfangen, nicht speichern)
+        run: node tools/relaistest.mjs 2>&1 | tee relaistest.txt
+      - name: Protokoll sichern
+        if: always()
+        run: bash tools/ci-log.sh relaistest.txt
