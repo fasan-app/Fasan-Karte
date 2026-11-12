@@ -1,2 +1,1 @@
-Artikel mit Koordinaten: 319
-Gespeichert: 317 Artikel; Beispiele: ['Rua Áurea', 'U-Bahnhof Baixa-Chiado', 'Rua Augusta', 'Armazéns Grandella', 'Federação Portuguesa de Taekwondo', 'Rua Garrett', 'Rua do Carmo (Lissabon)', 'Elevador de Santa Justa', 'Museu do Design e da Moda', 'Farmácia Normal', 'Livraria Bertrand', 'Museu Arqueológico do Carmo', 'Convento do Carmo', 'Largo do Carmo', 'Largo da Academia Nacional de Belas Artes']
+stadtfuehrer.json ist jünger als 6 Tage, kein neuer Abruf
