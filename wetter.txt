@@ -1,7 +1,5 @@
-ipma Versuch 1 fehlgeschlagen: <urlopen error timed out>
-ipma Versuch 2 fehlgeschlagen: <urlopen error timed out>
-ipma Versuch 3 fehlgeschlagen: <urlopen error timed out>
-om Versuch 1 fehlgeschlagen: <urlopen error _ssl.c:1063: The handshake operation timed out>
-om Versuch 2 fehlgeschlagen: <urlopen error _ssl.c:1063: The handshake operation timed out>
-om Versuch 3 fehlgeschlagen: <urlopen error _ssl.c:1063: The handshake operation timed out>
-wetter.json: {'stand': '2026-11-22T09:54+00:00', 'ort': 'Lissabon'}
+IPMA Felder: ['country', 'data', 'dataUpdate', 'globalIdLocal', 'owner'] erste Zeile: {"precipitaProb": "0.0", "tMin": "11.1", "tMax": "17.8", "predWindDir": "NW", "idWeatherType": 2, "classWindSpeed": 1, "longitude": "-9.1286", "forecastDate": "2026-11-22", "latitude": "38.7660"}
+IPMA Wettertypen erste Zeile: {"descWeatherTypeEN": "--", "descWeatherTypePT": "---", "idWeatherType": -99}
+Open-Meteo Felder: ['precipitation', 'precipitation_probability', 'temperature_2m', 'time', 'weather_code'] ['sunrise', 'sunset', 'time'] utc_offset_seconds: 0
+Sonne (Lissabon-Zeit): [{'datum': '2026-11-22', 'auf': '07:26', 'unter': '17:18'}, {'datum': '2026-11-23', 'auf': '07:27', 'unter': '17:18'}, {'datum': '2026-11-24', 'auf': '07:28', 'unter': '17:17'}, {'datum': '2026-11-25', 'auf': '07:29', 'unter': '17:17'}]
+wetter.json: {'stand': '2026-11-22T17:53+00:00', 'ort': 'Lissabon', 'ipma': 5, 'om': 96}
