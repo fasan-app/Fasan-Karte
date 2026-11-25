@@ -1,4 +1,1 @@
-Raster (504, 1332) min/max m -6.829442977905273 524.360107421875 Bytes gz 588900
-  Praça do Comércio: 3.4 m
-  Castelo de São Jorge: 100.7 m
-  Miradouro da Senhora do Monte: 98.3 m
+hoehe.json ist jünger als 30 Tage, kein neuer Abruf

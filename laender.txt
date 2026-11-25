@@ -1,7 +1,1 @@
-Länder: 196
-  PT {'stecker': ['C', 'F'], 'spannung': [230], 'frequenz': [], 'waehrung': ['EUR'], 'notruf': ['112'], 'seite': ['rechts'], 'sprachen': ['pt']}
-  DE {'stecker': ['C', 'F'], 'spannung': [230], 'frequenz': [], 'waehrung': ['EUR'], 'notruf': ['110', '112'], 'seite': ['rechts'], 'sprachen': ['de']}
-  AT {'stecker': ['C', 'F'], 'spannung': [230], 'frequenz': [], 'waehrung': ['EUR'], 'notruf': ['112', '120', '122', '123', '133', '140', '144'], 'seite': ['rechts'], 'sprachen': ['de']}
-  CH {'stecker': ['C', 'J'], 'spannung': [230], 'frequenz': [], 'waehrung': ['CHF'], 'notruf': ['112', '117', '118', '140', '1414', '144', '145'], 'seite': ['rechts'], 'sprachen': ['de', 'fr', 'it', 'rm']}
-  GB {'stecker': ['G'], 'spannung': [230], 'frequenz': [], 'waehrung': ['GBP'], 'notruf': ['112', '999'], 'seite': ['links'], 'sprachen': ['en']}
-  US {'stecker': ['A', 'B'], 'spannung': [120], 'frequenz': [], 'waehrung': ['USD'], 'notruf': ['911'], 'seite': ['rechts'], 'sprachen': ['ch', 'es', 'sm']}
+laender.json ist jünger als 30 Tage, kein neuer Abruf
